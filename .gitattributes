@@ -1,0 +1,7 @@
+# Disable line endings normalization, force crlf
+* -text
+
+# Identified this repository with a unique name
+#VisionSuite
+
+*.sln -text merge=union
