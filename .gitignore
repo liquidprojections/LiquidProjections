@@ -170,3 +170,4 @@ Output/*
 #Visual Studio 2015 files
 **/*.sln.ide/**
 Sources/_NCrunch_IntegrationHub/
+Artifacts/**
