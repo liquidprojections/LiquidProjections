@@ -1,4 +1,4 @@
-$script:ilMergeModule = @{}
+﻿$script:ilMergeModule = @{}
 $script:ilMergeModule.ilMergePath = $null
 
 <# see this aricle: http://www.mattwrock.com/post/2012/02/29/What-you-should-know-about-running-ILMerge-on-Net-45-Beta-assemblies-targeting-Net-40.aspx #>
@@ -8,24 +8,31 @@ function Merge-Assemblies {
 		$outputFile,
 		$exclude,
 		$keyfile,
-		$targetPlatform="v4"
+		[String[]]
+		$libPaths
 	)
 
 	$exclude | out-file ".\exclude.txt"
+	
+	$libPathArgs = @()
+	
+	foreach ($libPath in $libPaths) {
+		$libPathArgs = $libPathArgs + "/lib:$libPath"
+	}
 
 	$args = @(
 		"/internalize:exclude.txt", 
 		"/xmldocs",
 		"/wildcards",
-		"/targetplatform:$targetPlatform",
-        "/allowdup",
-		"/out:$outputFile") + $files
+        "/parallel",
+		"/out:$outputFile"
+		) + $libPathArgs + $files
 
 	if($ilMergeModule.ilMergePath -eq $null)
 	{
 		write-error "IlMerge Path is not defined. Please set variable `$ilMergeModule.ilMergePath"
 	}
-
+    
 	& $ilMergeModule.ilMergePath $args 
 
 	if($LastExitCode -ne 0) {
@@ -35,4 +42,4 @@ function Merge-Assemblies {
 	remove-item ".\exclude.txt"
 }
 
-Export-ModuleMember -Variable "ilMergeModule" -Function "Merge-Assemblies"
+Export-ModuleMember -Variable "ilMergeModule" -Function "Merge-Assemblies" 

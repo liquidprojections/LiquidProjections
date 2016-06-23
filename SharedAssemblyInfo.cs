@@ -1,6 +1,6 @@
-﻿using System.Reflection;
+using System.Reflection;
 [assembly: AssemblyCopyright("Copyright Dennis Doomen 2016")]
 
-[assembly: AssemblyVersion("1.2.3.4")]
-[assembly: AssemblyFileVersion("1.2.3.4")]
-[assembly: AssemblyInformationalVersion("1.2.3-unstable.34+34.Branch.develop.Sha.19b2cd7f494c092f87a522944f3ad52310de79e0")]
+[assembly: AssemblyVersion("0.1.0.0")]
+[assembly: AssemblyFileVersion("0.1.0.0")]
+[assembly: AssemblyInformationalVersion("0.1.0+0.Branch.master.Sha.3f51283b1d71420afa0206c94bac2b42fc963286")]

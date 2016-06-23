@@ -1,119 +1,112 @@
 ﻿properties { 
-	$ProjectName = "Liquid.Projections"
-    $AssemblyVersion = "1.2.3.4"
-	$InformationalVersion = "1.2.3-unstable.34+34.Branch.develop.Sha.19b2cd7f494c092f87a522944f3ad52310de79e0"
-	$NuGetVersion = "1.2.3-unstable4"
-	$RootDir  = Resolve-Path ..\
-	$NugetOutputDir = "$RootDir\Output"
-	$SrcDir = "$RootDir\Sources"
-    $ReportsDir = "$RootDir\TestResults"
-	$SolutionFilePath = "$SrcDir\$ProjectName.sln"
-	$AssemblyInfoFilePath = "$SrcDir\SharedAssemblyInfo.cs"
-    $ilMergeModule.ilMergePath = "$SrcDir\packages\ilmerge.2.14.1208\tools\ILMerge.exe"
-	$NuGetPackageBaseName = "eVision.QueryHost"
-}
-
-TaskSetup {
-    TeamCity-ReportBuildProgress "Starting task $($psake.context.Peek().currentTaskName)"
-}
-
-TaskTearDown {
-    TeamCity-ReportBuildProgress "Finished task $($psake.context.Peek().currentTaskName)"
-}
-
-task default -depends Clean, UpdateVersion, ConsolidateNuspecDependencyVersions, Compile, RunTests, MergeAssemblies, CreateNuGetPackages
-
-task Clean -Description "Cleaning solution." {
-	Remove-Item $NugetOutputDir/* -Force -Recurse -ErrorAction SilentlyContinue
-	exec { msbuild /nologo /verbosity:minimal $SolutionFilePath /t:Clean /p:VSToolsPath="$SrcDir\Packages\MSBuild.Microsoft.VisualStudio.Web.targets.11.0.2.1\tools\VSToolsPath" }
+	$BaseDirectory = Resolve-Path .. 
     
-    if (!(Test-Path -Path $NugetOutputDir)) {
-        New-Item -ItemType Directory -Force -Path $NugetOutputDir
+    $ProjectName = "Liquid.Projections"
+    
+	$SrcDir = "$BaseDirectory\src"
+    $TestsDir = "$BaseDirectory\tests"
+    $ArtifactsDirectory = "$BaseDirectory\Artifacts"
+    $SolutionFilePath = "$BaseDirectory\$ProjectName.sln"
+	$AssemblyInfoFilePath = "$SrcDir\SharedAssemblyInfo.cs"
+    $ilMergeModule.ilMergePath = "$BaseDirectory\Packages\ILRepack.2.0.10\tools\ILRepack.exe"
+
+    $NugetExe = "$BaseDirectory\lib\nuget.exe"
+    $GitVersionExe = "$BaseDirectory\lib\GitVersion.exe"
+}
+
+task default -depends Clean, ExtractVersionsFromGit, RestoreNugetPackages, ApplyAssemblyVersioning, Compile, RunTests, MergeAssemblies, CreateNuGetPackages 
+
+task RestoreNugetPackages {
+    $packageConfigs = Get-ChildItem "$BaseDirectory" -Recurse | where{$_.Name -eq "packages.config"}
+
+    foreach($packageConfig in $packageConfigs){
+    	Write-Host "Restoring" $packageConfig.FullName 
+    	exec { 
+            . "$NugetExe" install $packageConfig.FullName -OutputDirectory "$BaseDirectory\packages" -NonInteractive
+        }
     }
 }
 
-task UpdateVersion -Description "Updating assembly version number." {
-	Update-Version $AssemblyVersion $InformationalVersion $AssemblyInfoFilePath
+task Clean -Description "Cleaning solution." {
+	Remove-Item $ArtifactsDirectory/* -Force -Recurse -ErrorAction SilentlyContinue
+	exec { msbuild /nologo /verbosity:minimal $SolutionFilePath /t:Clean  }
+    
+    if (!(Test-Path -Path $ArtifactsDirectory)) {
+        New-Item -ItemType Directory -Force -Path $ArtifactsDirectory
+    }
 }
 
-task ConsolidateNuspecDependencyVersions -precondition { return $NuGetPackageBaseName; } {
-	Write-Host "Updating all NuGet dependencies on $NuGetPackageBaseName.* to version ""$NuGetVersion"""
+task ExtractVersionsFromGit {
+    
+        $json = . "$GitVersionExe" /u $GitVersionUsername /p $GitVersionPassword 
+        
+        if ($LASTEXITCODE -eq 0) {
+            $version = (ConvertFrom-Json ($json -join "`n"));
+          
+            $script:AssemblyVersion = $version.AssemblySemVer;
+            $script:InformationalVersion = $version.InformationalVersion;
+            $script:NuGetVersion = $version.NuGetVersionV2;
+        }
+        else {
+            Write-Output $json -join "`n";
+        }
+}
 
-	Get-ChildItem $SrcDir -Recurse -Include *.nuspec | % {
+task ApplyAssemblyVersioning {
+	Get-ChildItem -Path $BaseDirectory -Filter "?*AssemblyInfo.cs" -Recurse -Force |
+	foreach-object {  
 
-		$nuspecFile = $_.fullName;
-		Write-Host "    $nuspecFile updated"
+		Set-ItemProperty -Path $_.FullName -Name IsReadOnly -Value $false
+
+        $content = Get-Content $_.FullName
+        
+        if ($script:AssemblyVersion) {
+    		Write-Output "Updating " $_.FullName "with version" $script:AssemblyVersion
+    	    $content = $content -replace 'AssemblyVersion\("(.+)"\)', ('AssemblyVersion("' + $script:AssemblyVersion + '")')
+            $content = $content -replace 'AssemblyFileVersion\("(.+)"\)', ('AssemblyFileVersion("' + $script:AssemblyVersion + '")')
+        }
 		
-		$tmpFile = $nuspecFile + ".tmp"
-		
-		Get-Content $nuspecFile | `
-        %{$_ -replace "(<dependency\s+id=""$NuGetPackageBaseName.*?"")(\s+version="".+"")?\s*\/>", "`${1} version=""$NuGetVersion""/>" } | `
-        Out-File -Encoding UTF8 $tmpFile
-
-		Move-Item $tmpFile $nuspecFile -force
-	}
+        if ($script:InformationalVersion) {
+    		Write-Output "Updating " $_.FullName "with information version" $script:InformationalVersion
+            $content = $content -replace 'AssemblyInformationalVersion\("(.+)"\)', ('AssemblyInformationalVersion("' + $script:InformationalVersion + '")')
+        }
+        
+	    Set-Content -Path $_.FullName $content
+	}    
 }
 
 task Compile -Description "Compiling solution." { 
-	exec { msbuild /nologo /verbosity:minimal $SolutionFilePath /p:Configuration=Release /p:VSToolsPath="$SrcDir\Packages\MSBuild.Microsoft.VisualStudio.Web.targets.11.0.2.1\tools\VSToolsPath" }
+	exec { msbuild /nologo /verbosity:minimal $SolutionFilePath /p:Configuration=Release }
 }
 
 task RunTests -depends Compile -Description "Running all unit tests." {
-    $openCover = "$SrcDir\packages\OpenCover.4.5.3723\OpenCover.Console.exe"
-    $reportGenerator = "$SrcDir\packages\ReportGenerator.2.1.1.0\ReportGenerator.exe"
-	$xunitRunner = "$SrcDir\packages\xunit.runner.console.2.0.0\tools\xunit.console.exe"
-
-    if(!(Test-Path $ReportsDir)){
-	    New-Item $ReportsDir -Type Directory
+	$xunitRunner = "$BaseDirectory\packages\xunit.runner.console.2.1.0\tools\xunit.console.exe"
+    
+    if (!(Test-Path $ArtifactsDirectory)) {
+		New-Item $ArtifactsDirectory -Type Directory
 	}
 
-	Get-ChildItem $SrcDir -Recurse -Include *.Specs.dll | 
-		Where-Object { ($_.FullName -notlike "*obj*") -and ($_.FullName -notlike "*TestWebHost*") } | % {
-		$project = $_.BaseName
-		
-		exec {
-            . $xunitRunner "$_" -html "$ReportsDir\$project-index.html"
-        }
-	}
+	exec { . $xunitRunner "$TestsDir\Liquid.Projections.Specs\bin\Release\Liquid.Projections.Specs.dll" -html "$ArtifactsDirectory\xunit.html"  }
 }
 
 task MergeAssemblies -depends Compile -Description "Merging dependencies" {
 
-    Merge-Assemblies -outputFile "$NugetOutputDir/eVision.QueryHost.dll" -files @(
-        "$SrcDir/QueryHost/bin/release/eVision.QueryHost.dll",
-        "$SrcDir/QueryHost/bin/release/Autofac.dll",
-        "$SrcDir/QueryHost/bin/release/Autofac.Integration.WebApi.dll",
-        "$SrcDir/QueryHost/bin/release/Newtonsoft.Json.dll",
-        "$SrcDir/QueryHost/bin/release/System.Net.Http.Formatting.dll",
-        "$SrcDir/QueryHost/bin/release/System.Web.Http.dll",
-        "$SrcDir/QueryHost/bin/release/System.Web.Http.Owin.dll",
-        "$SrcDir/QueryHost/bin/release/Microsoft.Owin.dll",
-        "$SrcDir/QueryHost/bin/release/System.Reactive.Core.dll",
-        "$SrcDir/QueryHost/bin/release/System.Reactive.Interfaces.dll",
-        "$SrcDir/QueryHost/bin/release/System.Reactive.Linq.dll",
-        "$SrcDir/QueryHost/bin/release/System.Reactive.PlatformServices.dll"
-    )
-    
-    Merge-Assemblies -outputFile "$NugetOutputDir/eVision.QueryHost.Client.dll" -files @(
-        "$SrcDir/QueryHost.Client/bin/release/eVision.QueryHost.Client.dll"
-    )
-
-    Merge-Assemblies -outputFile "$NugetOutputDir/eVision.QueryHost.Raven.dll" -files @(
-        "$SrcDir/QueryHost.Raven/bin/release/eVision.QueryHost.Raven.dll",
-        "$SrcDir/QueryHost.Raven/bin/release/System.Reactive.Core.dll",
-        "$SrcDir/QueryHost.Raven/bin/release/System.Reactive.Interfaces.dll",
-        "$SrcDir/QueryHost.Raven/bin/release/System.Reactive.Linq.dll",
-        "$SrcDir/QueryHost.Raven/bin/release/System.Reactive.PlatformServices.dll"
-    )
-    
-    Merge-Assemblies -outputFile "$NugetOutputDir/eVision.QueryHost.NEventStore.dll" -files @(
-    "$SrcDir/QueryHost.NEventStore/bin/release/eVision.QueryHost.NEventStore.dll"
-        
+    Merge-Assemblies -outputFile "$ArtifactsDirectory\Liquid.Projections.dll" -libPaths "$SrcDir\Liquid.Projections\bin\release" -files @(
+        "$SrcDir\Liquid.Projections\bin\release\Liquid.Projections.dll"
     )
 }
 
 task CreateNuGetPackages -depends Compile -Description "Creating NuGet package." {
-	gci $SrcDir -Recurse -Include *.nuspec | % {
-		exec { ..\Tools\nuget.exe pack $_ -o $NugetOutputDir -version $NuGetVersion }
+	gci $BaseDirectory -Recurse -Include *.nuspec | % {
+		exec { 
+			$NuGetVersion = $script:NuGetVersion
+			
+            if (!$NuGetVersion) {
+                $NuGetVersion = "0.0.1.0"
+            }
+        
+        Write-Host $_
+            . "$NugetExe" pack $_ -o "$ArtifactsDirectory" -version $NuGetVersion 
+        }
 	}
 }
