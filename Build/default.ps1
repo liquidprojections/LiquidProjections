@@ -1,7 +1,7 @@
 ﻿properties { 
 	$BaseDirectory = Resolve-Path .. 
     
-    $ProjectName = "Liquid.Projections"
+    $ProjectName = "LiquidProjections"
     
 	$SrcDir = "$BaseDirectory\src"
     $TestsDir = "$BaseDirectory\tests"
@@ -86,18 +86,22 @@ task RunTests -depends Compile -Description "Running all unit tests." {
 		New-Item $ArtifactsDirectory -Type Directory
 	}
 
-	exec { . $xunitRunner "$TestsDir\Liquid.Projections.Specs\bin\Release\Liquid.Projections.Specs.dll" -html "$ArtifactsDirectory\xunit.html"  }
+	exec { . $xunitRunner "$TestsDir\LiquidProjections.Specs\bin\Release\LiquidProjections.Specs.dll" "$TestsDir\LiquidProjections.NEventStore.Specs\bin\Release\LiquidProjections.NEventStore.Specs.dll" -html "$ArtifactsDirectory\xunit.html"  }
 }
 
 task MergeAssemblies -depends Compile -Description "Merging dependencies" {
 
-    Merge-Assemblies -outputFile "$ArtifactsDirectory\Liquid.Projections.dll" -libPaths "$SrcDir\Liquid.Projections\bin\release" -files @(
-        "$SrcDir\Liquid.Projections\bin\release\Liquid.Projections.dll"
+    Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
+        "$SrcDir\LiquidProjections\bin\release\LiquidProjections.dll"
+    )
+
+    Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.NEventStore.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
+        "$SrcDir\LiquidProjections.NEventStore\bin\release\LiquidProjections.NEventStore.dll"
     )
 }
 
 task CreateNuGetPackages -depends Compile -Description "Creating NuGet package." {
-	gci $BaseDirectory -Recurse -Include *.nuspec | % {
+	gci $SrcDir -Recurse -Include *.nuspec | % {
 		exec { 
 			$NuGetVersion = $script:NuGetVersion
 			

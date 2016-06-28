@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
     <metadata>
-        <id>Liquid.Projections</id>
+        <id>LiquidProjections</id>
         <version>0.0.0.0</version>
         <authors>Dennis Doomen</authors>
         <owners>Dennis Doomen</owners>
@@ -18,8 +18,8 @@
       </dependencies>
     </metadata>
     <files>
-        <file src="Artifacts\Liquid.Projections.dll" target="lib\net452" />
-        <file src="Artifacts\Liquid.Projections.pdb" target="lib\net452" />
-        <file src="Artifacts\Liquid.Projections.xml" target="lib\net452" />
+        <file src="..\..\Artifacts\LiquidProjections.dll" target="lib\net452" />
+        <file src="..\..\Artifacts\LiquidProjections.pdb" target="lib\net452" />
+        <file src="..\..\Artifacts\LiquidProjections.xml" target="lib\net452" />
     </files>
 </package>
