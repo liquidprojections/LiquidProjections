@@ -13,6 +13,13 @@ namespace LiquidProjections.NEventStore.Specs
 {
     namespace EventStoreClientSpecs
     {
+        // TODO: Lots of subscriptions for the same checkpoint result in a single query when a new event is pushed
+        // TODO: Multiple serialized subscriptions for the same checkpoint result in a single query when executed within the cache window
+        // TODO: Multiple serialized subscriptions for the same checkpoint result in a multiple queries when executed outside the cache window
+        // TODO: When disposing the adapter, no transactions should be published to subscribers anymore
+        // TODO: When disposing the adapter, no queries must happend anymore
+        // TODO: When disposing a subscription, no transactions should be published to the subscriber anymore
+
         public class When_the_persistency_engine_is_temporarily_unavailable : GivenSubject<NEventStoreAdapter>
         {
             private readonly TimeSpan pollingInterval = 1.Seconds();
