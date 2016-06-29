@@ -2,6 +2,7 @@
 	$BaseDirectory = Resolve-Path .. 
     
     $ProjectName = "LiquidProjections"
+    $NuGetPackageBaseName = "LiquidProjections"
     
 	$SrcDir = "$BaseDirectory\src"
     $TestsDir = "$BaseDirectory\tests"
@@ -14,7 +15,7 @@
     $GitVersionExe = "$BaseDirectory\lib\GitVersion.exe"
 }
 
-task default -depends Clean, ExtractVersionsFromGit, RestoreNugetPackages, ApplyAssemblyVersioning, Compile, RunTests, MergeAssemblies, CreateNuGetPackages 
+task default -depends Clean, RestoreNugetPackages, ApplyAssemblyVersioning, ConsolidateNuspecDependencyVersions, Compile, RunTests, CreateNuGetPackages 
 
 task RestoreNugetPackages {
     $packageConfigs = Get-ChildItem "$BaseDirectory" -Recurse | where{$_.Name -eq "packages.config"}
@@ -52,7 +53,7 @@ task ExtractVersionsFromGit {
         }
 }
 
-task ApplyAssemblyVersioning {
+task ApplyAssemblyVersioning -depends ExtractVersionsFromGit {
 	Get-ChildItem -Path $BaseDirectory -Filter "?*AssemblyInfo.cs" -Recurse -Force |
 	foreach-object {  
 
@@ -73,6 +74,24 @@ task ApplyAssemblyVersioning {
         
 	    Set-Content -Path $_.FullName $content
 	}    
+}
+
+task ConsolidateNuspecDependencyVersions -depends ExtractVersionsFromGit -precondition { return $NuGetPackageBaseName; } {
+	Write-Host "Updating all NuGet dependencies on $NuGetPackageBaseName.* to version ""$NuGetVersion"""
+
+	Get-ChildItem $SrcDir -Recurse -Include *.nuspec | % {
+
+		$nuspecFile = $_.fullName;
+		Write-Host "    $nuspecFile updated"
+		
+		$tmpFile = $nuspecFile + ".tmp"
+		
+		Get-Content $nuspecFile | `
+        %{$_ -replace "(<dependency\s+id=""$NuGetPackageBaseName.*?"")(\s+version="".+"")?\s*\/>", "`${1} version=""$NuGetVersion""/>" } | `
+        Out-File -Encoding UTF8 $tmpFile
+
+		Move-Item $tmpFile $nuspecFile -force
+	}
 }
 
 task Compile -Description "Compiling solution." { 
@@ -100,7 +119,7 @@ task MergeAssemblies -depends Compile -Description "Merging dependencies" {
     )
 }
 
-task CreateNuGetPackages -depends Compile -Description "Creating NuGet package." {
+task CreateNuGetPackages -depends Compile, MergeAssemblies -Description "Creating NuGet package." {
 	gci $SrcDir -Recurse -Include *.nuspec | % {
 		exec { 
 			$NuGetVersion = $script:NuGetVersion
