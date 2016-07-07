@@ -105,17 +105,28 @@ task RunTests -depends Compile -Description "Running all unit tests." {
 		New-Item $ArtifactsDirectory -Type Directory
 	}
 
-	exec { . $xunitRunner "$TestsDir\LiquidProjections.Specs\bin\Release\LiquidProjections.Specs.dll" "$TestsDir\LiquidProjections.NEventStore.Specs\bin\Release\LiquidProjections.NEventStore.Specs.dll" -html "$ArtifactsDirectory\xunit.html"  }
+	exec { . $xunitRunner `
+        "$TestsDir\LiquidProjections.Specs\bin\Release\LiquidProjections.Specs.dll" `
+        "$TestsDir\LiquidProjections.NEventStore.Specs\bin\Release\LiquidProjections.NEventStore.Specs.dll" `
+        "$TestsDir\LiquidProjections.RavenDB.Specs\bin\Release\LiquidProjections.RavenDB.Specs.dll" `
+        -html "$ArtifactsDirectory\xunit.html"  }
 }
 
 task MergeAssemblies -depends Compile -Description "Merging dependencies" {
 
     Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
         "$SrcDir\LiquidProjections\bin\release\LiquidProjections.dll"
+        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Core.dll"
+        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Interfaces.dll"
+        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Linq.dll"
     )
 
     Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.NEventStore.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
         "$SrcDir\LiquidProjections.NEventStore\bin\release\LiquidProjections.NEventStore.dll"
+    )
+
+    Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.RavenDB.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
+        "$SrcDir\LiquidProjections.RavenDB\bin\release\LiquidProjections.RavenDB.dll"
     )
 }
 

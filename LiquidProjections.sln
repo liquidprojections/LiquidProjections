@@ -22,6 +22,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.NEventSto
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.NEventStore.Specs", "Tests\LiquidProjections.NEventStore.Specs\LiquidProjections.NEventStore.Specs.csproj", "{D6415757-98F4-407D-BFED-D0C1BBF6A8E3}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.RavenDB", "Src\LiquidProjections.RavenDB\LiquidProjections.RavenDB.csproj", "{FBE5FB82-A7EC-4D30-9295-08D107F448BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.RavenDB.Specs", "Tests\LiquidProjections.RavenDB.Specs\LiquidProjections.RavenDB.Specs.csproj", "{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -44,6 +48,14 @@ Global
 		{D6415757-98F4-407D-BFED-D0C1BBF6A8E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D6415757-98F4-407D-BFED-D0C1BBF6A8E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D6415757-98F4-407D-BFED-D0C1BBF6A8E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FBE5FB82-A7EC-4D30-9295-08D107F448BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FBE5FB82-A7EC-4D30-9295-08D107F448BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FBE5FB82-A7EC-4D30-9295-08D107F448BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FBE5FB82-A7EC-4D30-9295-08D107F448BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -53,5 +65,7 @@ Global
 		{F52732CA-C925-4DF6-A477-F5F441869735} = {15D45AC7-E234-431A-8EF9-0A3311A33926}
 		{99FACA9D-D5E8-4EF4-B552-EAEA15B75B0D} = {AE89AB5E-BC68-4AA3-9183-A222AC81691C}
 		{D6415757-98F4-407D-BFED-D0C1BBF6A8E3} = {15D45AC7-E234-431A-8EF9-0A3311A33926}
+		{FBE5FB82-A7EC-4D30-9295-08D107F448BB} = {AE89AB5E-BC68-4AA3-9183-A222AC81691C}
+		{44DC67E0-56FE-4ADD-BFBC-7FB2136114BD} = {15D45AC7-E234-431A-8EF9-0A3311A33926}
 	EndGlobalSection
 EndGlobal
