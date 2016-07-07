@@ -68,6 +68,7 @@
     <Compile Include="ITrackingStore.cs" />
     <Compile Include="ProjectionContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TrackingService.cs" />
     <Compile Include="Transaction.cs" />
   </ItemGroup>
   <ItemGroup>
