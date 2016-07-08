@@ -5,6 +5,6 @@ namespace LiquidProjections
 {
     public interface IEventStore
     {
-        IObservable<IReadOnlyList<Transaction>> Subscribe(string checkpoint);
+        IObservable<IReadOnlyList<Transaction>> Subscribe(long? checkpoint);
     }
 }

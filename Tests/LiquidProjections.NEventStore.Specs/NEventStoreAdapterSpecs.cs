@@ -6,7 +6,6 @@ using FakeItEasy;
 using FluentAssertions;
 using NEventStore;
 using NEventStore.Persistence;
-using Ploeh.AutoFixture;
 using Xunit;
 
 namespace LiquidProjections.NEventStore.Specs
@@ -29,7 +28,7 @@ namespace LiquidProjections.NEventStore.Specs
             {
                 Given(() =>
                 {
-                    UseThe(A.Fake<ICommit>());
+                    UseThe((ICommit) new CommitBuilder().WithCheckpoint("123").Build());
 
                     var eventStore = A.Fake<IPersistStreams>();
                     A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
@@ -38,7 +37,13 @@ namespace LiquidProjections.NEventStore.Specs
                     WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100));
                 });
 
-                When(() => { Subject.Subscribe("").Subscribe(transactions => { actualTransaction = transactions.First(); }); });
+                When(() =>
+                {
+                    Subject.Subscribe(null).Subscribe(transactions =>
+                    {
+                        actualTransaction = transactions.First();
+                    });
+                });
             }
 
             [Fact]
@@ -63,7 +68,7 @@ namespace LiquidProjections.NEventStore.Specs
             {
                 Given(() =>
                 {
-                    UseThe((ICommit) new Fixture().Create<Commit>());
+                    UseThe((ICommit) new CommitBuilder().WithCheckpoint("123").Build());
 
                     var eventStore = A.Fake<IPersistStreams>();
                     A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
@@ -71,7 +76,13 @@ namespace LiquidProjections.NEventStore.Specs
                     WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100));
                 });
 
-                When(() => { Subject.Subscribe("").Subscribe(transactions => { actualTransaction = transactions.First(); }); });
+                When(() =>
+                {
+                    Subject.Subscribe(null).Subscribe(transactions =>
+                    {
+                        actualTransaction = transactions.First();
+                    });
+                });
             }
 
             [Fact]
@@ -85,7 +96,7 @@ namespace LiquidProjections.NEventStore.Specs
 
                 var commit = The<ICommit>();
                 actualTransaction.Id.Should().Be(commit.CommitId.ToString());
-                actualTransaction.Checkpoint.Should().Be(commit.CheckpointToken);
+                actualTransaction.Checkpoint.Should().Be(long.Parse(commit.CheckpointToken));
                 actualTransaction.TimeStampUtc.Should().Be(commit.CommitStamp);
                 actualTransaction.StreamId.Should().Be(commit.StreamId);
 

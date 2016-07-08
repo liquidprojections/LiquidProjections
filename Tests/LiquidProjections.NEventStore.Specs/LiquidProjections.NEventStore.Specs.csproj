@@ -88,8 +88,12 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CommitBuilder.cs" />
+    <Compile Include="Event.cs" />
+    <Compile Include="EventMessageBuilder.cs" />
     <Compile Include="NEventStoreAdapterSpecs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestDataBuilder.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

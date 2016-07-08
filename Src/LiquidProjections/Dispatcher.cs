@@ -14,7 +14,7 @@ namespace LiquidProjections
             this.eventStore = eventStore;
         }
 
-        public void Subscribe(string checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public void Subscribe(long checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
             eventStore.Subscribe(checkpoint)
                 .Select(transactions => Observable.FromAsync(() => handler(transactions)))

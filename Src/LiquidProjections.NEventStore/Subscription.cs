@@ -11,11 +11,11 @@ namespace LiquidProjections.NEventStore
         private CancellationTokenSource cancellationTokenSource;
         private readonly object syncRoot = new object();
         private bool isDisposed;
-        private string lastCheckpoint;
+        private long? lastCheckpoint;
         private readonly IObserver<IReadOnlyList<Transaction>> observer;
         private volatile bool hasFailed;
 
-        public Subscription(NEventStoreAdapter eventStoreClient, string checkpoint,
+        public Subscription(NEventStoreAdapter eventStoreClient, long? checkpoint,
             IObserver<IReadOnlyList<Transaction>> observer)
         {
             this.eventStoreClient = eventStoreClient;

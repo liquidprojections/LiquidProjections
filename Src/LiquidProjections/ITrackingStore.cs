@@ -1,11 +1,11 @@
 ﻿using System.Threading.Tasks;
 
-namespace eVision.FlowVision.Infrastructure.Common.Raven.Liquid
+namespace LiquidProjections
 {
     public interface ITrackingStore
     {
-        Task<string> LoadCheckpoint(string projectorId);
+        Task<long?> LoadCheckpoint(string projectorId);
 
-        Task SaveCheckpoint(string projectorId, string checkpoint);
+        Task SaveCheckpoint(string projectorId, long checkpoint);
     }
 }

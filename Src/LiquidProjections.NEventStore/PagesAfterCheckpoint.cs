@@ -6,9 +6,9 @@ namespace LiquidProjections.NEventStore
     internal sealed class PagesAfterCheckpoint : IObservable<IReadOnlyList<Transaction>>
     {
         private readonly NEventStoreAdapter eventStoreClient;
-        private readonly string checkpoint;
+        private readonly long? checkpoint;
 
-        public PagesAfterCheckpoint(NEventStoreAdapter eventStoreClient, string checkpoint)
+        public PagesAfterCheckpoint(NEventStoreAdapter eventStoreClient, long? checkpoint)
         {
             this.eventStoreClient = eventStoreClient;
             this.checkpoint = checkpoint;
