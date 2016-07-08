@@ -1,6 +1,5 @@
 using System;
 using System.Threading.Tasks;
-using eVision.FlowVision.Infrastructure.Common.Raven.Liquid;
 using Raven.Client;
 
 namespace LiquidProjections.RavenDB
@@ -14,19 +13,19 @@ namespace LiquidProjections.RavenDB
             this.sessionFactory = sessionFactory;
         }
 
-        public async Task<string> LoadCheckpoint(string projectorId)
+        public async Task<long?> LoadCheckpoint(string projectorId)
         {
-            using (var session = sessionFactory())
+            using (IAsyncDocumentSession session = sessionFactory())
             {
                 var state = await session.LoadAsync<ProjectorState>("Checkpoint/" + projectorId);
 
-                return (state != null) ? state.Checkpoint : "";
+                return state?.Checkpoint;
             }
         }
 
-        public async Task SaveCheckpoint(string projectorId, string checkpoint)
+        public async Task SaveCheckpoint(string projectorId, long checkpoint)
         {
-            using (var session = sessionFactory())
+            using (IAsyncDocumentSession session = sessionFactory())
             {
                 await session.StoreAsync(new ProjectorState
                 {
@@ -42,7 +41,7 @@ namespace LiquidProjections.RavenDB
         {
             public string Id { get; set; }
 
-            public string Checkpoint { get; set; }
+            public long Checkpoint { get; set; }
 
             public DateTime LastUpdateUtc { get; set; }
         }

@@ -4,13 +4,13 @@ namespace LiquidProjections.NEventStore
 {
     internal sealed class CheckpointRequestTimestamp
     {
-        public CheckpointRequestTimestamp(string checkpoint, DateTime dateTimeUtc)
+        public CheckpointRequestTimestamp(long checkpoint, DateTime dateTimeUtc)
         {
             Checkpoint = checkpoint;
             DateTimeUtc = dateTimeUtc;
         }
 
-        public string Checkpoint { get; }
+        public long Checkpoint { get; }
         public DateTime DateTimeUtc { get; }
     }
 }

@@ -17,7 +17,7 @@ namespace LiquidProjections.NEventStore
         internal volatile bool isDisposed;
         internal readonly object subscriptionLock = new object();
         private Task<Page> currentLoader;
-        private readonly LruCache<string, Transaction> transactionCache;
+        private readonly LruCache<long, Transaction> transactionCache;
         private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private CheckpointRequestTimestamp lastExistingCheckpointRequest;
 
@@ -26,30 +26,28 @@ namespace LiquidProjections.NEventStore
             this.eventStore = eventStore;
             this.pollInterval = pollInterval;
             this.maxPageSize = maxPageSize;
-            transactionCache = new LruCache<string, Transaction>(cacheSize);
+            transactionCache = new LruCache<long, Transaction>(cacheSize);
         }
 
-        public IObservable<IReadOnlyList<Transaction>> Subscribe(string checkpoint)
+        public IObservable<IReadOnlyList<Transaction>> Subscribe(long? checkpoint)
         {
             return new PagesAfterCheckpoint(this, checkpoint);
         }
 
-        internal async Task<Page> GetNextPage(string checkpoint)
+        internal async Task<Page> GetNextPage(long? checkpoint)
         {
             if (isDisposed)
             {
                 throw new ObjectDisposedException(typeof(NEventStoreAdapter).FullName);
             }
 
-            Page pageFromCache = TryGetNextPageFromCache(checkpoint);
-
+            Page pageFromCache = TryGetNextPageFromCache(checkpoint ?? 0);
             if (pageFromCache.Transactions.Count > 0)
             {
                 return pageFromCache;
             }
 
             Page loadedPage = await LoadNextPageSequentially(checkpoint);
-
             if (loadedPage.Transactions.Count == maxPageSize)
             {
                 StartPreloadingNextPage(loadedPage.LastCheckpoint);
@@ -58,7 +56,7 @@ namespace LiquidProjections.NEventStore
             return loadedPage;
         }
 
-        private Page TryGetNextPageFromCache(string checkpoint)
+        private Page TryGetNextPageFromCache(long checkpoint)
         {
             Transaction cachedNextTransaction;
 
@@ -68,7 +66,7 @@ namespace LiquidProjections.NEventStore
 
                 while (resultPage.Count < maxPageSize)
                 {
-                    string lastCheckpoint = cachedNextTransaction.Checkpoint;
+                    long lastCheckpoint = cachedNextTransaction.Checkpoint;
 
                     if (transactionCache.TryGet(lastCheckpoint, out cachedNextTransaction))
                     {
@@ -87,13 +85,13 @@ namespace LiquidProjections.NEventStore
             return new Page(checkpoint, new Transaction[0]);
         }
 
-        private void StartPreloadingNextPage(string checkpoint)
+        private void StartPreloadingNextPage(long? checkpoint)
         {
             // Ignore result.
             Task _ = LoadNextPageSequentially(checkpoint);
         }
 
-        private async Task<Page> LoadNextPageSequentially(string checkpoint)
+        private async Task<Page> LoadNextPageSequentially(long? checkpoint)
         {
             while (true)
             {
@@ -117,7 +115,6 @@ namespace LiquidProjections.NEventStore
                 }
 
                 Page candidatePage = await TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(checkpoint);
-
                 if (candidatePage.PreviousCheckpoint == checkpoint && candidatePage.Transactions.Count > 0)
                 {
                     return candidatePage;
@@ -125,7 +122,7 @@ namespace LiquidProjections.NEventStore
             }
         }
 
-        private Task<Page> TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(string checkpoint)
+        private Task<Page> TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(long? checkpoint)
         {
             TaskCompletionSource<Page> taskCompletionSource = null;
             bool isTaskOwner = false;
@@ -161,7 +158,7 @@ namespace LiquidProjections.NEventStore
             }
         }
 
-        private  async Task TryLoadNextPageAndMakeLoaderComplete(string checkpoint,
+        private  async Task TryLoadNextPageAndMakeLoaderComplete(long? checkpoint,
             TaskCompletionSource<Page> loaderCompletionSource)
         {
             Page nextPage;
@@ -183,11 +180,10 @@ namespace LiquidProjections.NEventStore
             loaderCompletionSource.SetResult(nextPage);
         }
 
-        private async Task<Page> TryLoadNextPage(string checkpoint)
+        private async Task<Page> TryLoadNextPage(long? checkpoint)
         {
             // Maybe it's just loaded to cache.
-            Page cachedPage = TryGetNextPageFromCache(checkpoint);
-
+            Page cachedPage = TryGetNextPageFromCache(checkpoint ?? 0);
             if (cachedPage.Transactions.Count > 0)
             {
                 return cachedPage;
@@ -200,7 +196,7 @@ namespace LiquidProjections.NEventStore
                 try
                 {
                     return eventStore
-                        .GetFrom(checkpoint)
+                        .GetFrom((checkpoint != null) ? checkpoint.ToString() : "")
                         .Take(maxPageSize)
                         .Select(ToTransaction)
                         .ToList();
@@ -229,7 +225,7 @@ namespace LiquidProjections.NEventStore
                     transactionCache.Set(transactions[index - 1].Checkpoint, transactions[index]);
                 }
 
-                transactionCache.Set(checkpoint, transactions[0]);
+                transactionCache.Set(checkpoint ?? 0, transactions[0]);
             }
 
             return new Page(checkpoint, transactions);
@@ -241,7 +237,9 @@ namespace LiquidProjections.NEventStore
             {
                 Id = commit.CommitId.ToString(),
                 StreamId = commit.StreamId,
-                Checkpoint = commit.CheckpointToken,
+
+                // SMELL properly log an exception that we only support numeric based storage engines
+                Checkpoint = long.Parse(commit.CheckpointToken),
                 TimeStampUtc = commit.CommitStamp,
                 Events = new List<EventEnvelope>(commit.Events.Select(@event => new EventEnvelope
                 {

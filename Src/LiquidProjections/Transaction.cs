@@ -36,6 +36,6 @@ namespace LiquidProjections
         /// <summary>
         /// The checkpoint that represents the storage level order.
         /// </summary>
-        public string Checkpoint { get; set; }
+        public long Checkpoint { get; set; }
     }
 }

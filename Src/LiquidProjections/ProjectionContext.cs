@@ -20,6 +20,6 @@ namespace eVision.FlowVision.Infrastructure.Common.Raven.Liquid
         /// <summary>
         /// Gets or sets the checkpoint of the commit that is currently being dispatched.
         /// </summary>
-        public string CheckPoint { get; set; }
+        public long Checkpoint { get; set; }
     }
 }
