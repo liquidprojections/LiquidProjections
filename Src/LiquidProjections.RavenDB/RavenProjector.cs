@@ -11,7 +11,7 @@ namespace LiquidProjections.RavenDB
 
     public delegate Func<TProjection, RavenProjectionContext, Task> GetEventHandler<in TProjection>(object @event);
 
-    public class RavenProjector<TProjection> where TProjection : IHaveKey, new()
+    public class RavenProjector<TProjection> where TProjection : IHaveIdentity, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly GetEventKey getEventKey;
@@ -48,7 +48,7 @@ namespace LiquidProjections.RavenDB
                             {
                                 projection = new TProjection
                                 {
-                                    Key = key
+                                    Id = key
                                 };
 
                                 await session.StoreAsync(projection);
