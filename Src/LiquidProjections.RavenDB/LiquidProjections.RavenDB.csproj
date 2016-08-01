@@ -55,7 +55,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="IHaveKey.cs" />
+    <Compile Include="IHaveIdentity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RavenProjectionContext.cs" />
     <Compile Include="RavenProjector.cs" />
