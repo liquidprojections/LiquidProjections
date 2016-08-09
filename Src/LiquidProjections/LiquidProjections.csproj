@@ -36,6 +36,10 @@
     <NoWarn>1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Chill, Version=2.2.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Chill.2.2.0\Lib\net45\Chill.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Reactive.Core, Version=3.0.0.0, Culture=neutral, PublicKeyToken=94bc3704cddfc263, processorArchitecture=MSIL">
@@ -62,9 +66,11 @@
       <Link>SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="Dispatcher.cs" />
+    <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="EventEnvelope.cs" />
     <Compile Include="EventMap.cs" />
     <Compile Include="IEventStore.cs" />
+    <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />
     <Compile Include="ProjectionContext.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

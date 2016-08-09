@@ -11,20 +11,22 @@ namespace LiquidProjections.RavenDB
 
     public delegate Func<TProjection, RavenProjectionContext, Task> GetEventHandler<in TProjection>(object @event);
 
-    public class RavenProjector<TProjection> where TProjection : IHaveKey, new()
+    public class RavenProjector<TProjection> where TProjection : IHaveIdentity, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly GetEventKey getEventKey;
         private readonly GetEventVersion getEventVersion;
         private readonly GetEventHandler<TProjection> getEventHandler;
+        private readonly IProjectionCache<TProjection> cache;
 
         public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, 
-            GetEventKey getEventKey, GetEventVersion getEventVersion, GetEventHandler<TProjection> getEventHandler)
+            GetEventKey getEventKey, GetEventVersion getEventVersion, GetEventHandler<TProjection> getEventHandler, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
             this.getEventKey = getEventKey;
             this.getEventVersion = getEventVersion;
             this.getEventHandler = getEventHandler;
+            this.cache = cache ?? new PassthroughCache<TProjection>();
         }
 
         public async Task Handle(IEnumerable<Transaction> transactions)
@@ -35,26 +37,29 @@ namespace LiquidProjections.RavenDB
                 {
                     foreach (EventEnvelope @event in transaction.Events)
                     {
-                        // TODO: try get projection from cache
-                        // TODO: handle old versions
-
                         Func<TProjection, RavenProjectionContext, Task> handler = getEventHandler(@event.Body);
                         if (handler != null)
                         {
                             string key = getEventKey(@event.Body);
 
-                            var projection = await session.LoadAsync<TProjection>(key);
-                            if (projection == null)
+                            TProjection p = await cache.Get(key, async () => 
                             {
-                                projection = new TProjection
+                                var projection = await session.LoadAsync<TProjection>(key);
+                                if (projection == null)
                                 {
-                                    Key = key
-                                };
+                                    projection = new TProjection
+                                    {
+                                        Id = key
+                                    };
 
-                                await session.StoreAsync(projection);
-                            }
+                                }
 
-                            await handler(projection, new RavenProjectionContext
+                                return projection;
+                            });
+
+                            await session.StoreAsync(p);
+
+                            await handler(p, new RavenProjectionContext
                             {
                                 Session = session,
                                 StreamId = transaction.StreamId,
@@ -63,8 +68,9 @@ namespace LiquidProjections.RavenDB
                             });
                         }
 
-                        await session.SaveChangesAsync();
                     }
+
+                    await session.SaveChangesAsync();
                 }
             }
         }
