@@ -7,24 +7,20 @@ namespace LiquidProjections.RavenDB
 {
     public delegate string GetEventKey(object @event);
 
-    public delegate long GetEventVersion(object @event);
-
     public delegate Func<TProjection, RavenProjectionContext, Task> GetEventHandler<in TProjection>(object @event);
 
     public class RavenProjector<TProjection> where TProjection : IHaveIdentity, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly GetEventKey getEventKey;
-        private readonly GetEventVersion getEventVersion;
         private readonly GetEventHandler<TProjection> getEventHandler;
         private readonly IProjectionCache<TProjection> cache;
 
         public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, 
-            GetEventKey getEventKey, GetEventVersion getEventVersion, GetEventHandler<TProjection> getEventHandler, IProjectionCache<TProjection> cache = null)
+            GetEventKey getEventKey, GetEventHandler<TProjection> getEventHandler, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
             this.getEventKey = getEventKey;
-            this.getEventVersion = getEventVersion;
             this.getEventHandler = getEventHandler;
             this.cache = cache ?? new PassthroughCache<TProjection>();
         }

@@ -31,7 +31,7 @@ namespace LiquidProjections.RavenDB.Specs
                     maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, e => e.Version, (p, e) => p.Category = e.Category);
 
                     var ravenProjector = new RavenProjector<ProductCatalogEntry>(
-                        store.OpenAsyncSession, maps.GetKey, maps.GetVersion, maps.GetHandler);
+                        store.OpenAsyncSession, maps.GetKey, maps.GetHandler);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
@@ -96,7 +96,7 @@ namespace LiquidProjections.RavenDB.Specs
                     });
 
                     var ravenProjector = new RavenProjector<ProductCatalogEntry>(
-                        store.OpenAsyncSession, maps.GetKey, maps.GetVersion, maps.GetHandler, cache);
+                        store.OpenAsyncSession, maps.GetKey, maps.GetHandler, cache);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
