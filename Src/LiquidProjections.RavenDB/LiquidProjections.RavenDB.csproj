@@ -22,7 +22,7 @@
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Debug\LiquidProjections.RavenDB.XML</DocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>1591</NoWarn>
+    <NoWarn>1571, 1591, 1570, 1573</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -33,7 +33,7 @@
     <WarningLevel>4</WarningLevel>
     <DocumentationFile>bin\Release\LiquidProjections.RavenDB.XML</DocumentationFile>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>1591</NoWarn>
+    <NoWarn>1571, 1591, 1570, 1573</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Raven.Abstractions, Version=3.0.0.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
@@ -55,7 +55,23 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="App_Packages\FluidCaching.Sources\AgeBag.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\CacheStats.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\FluidCache.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\GetKey.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\GetNow.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\IIndex.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\IIndexManagement.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\Index.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\INode.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\IsValid.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\ItemCreator.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\LifespanManager.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\Node.cs" />
     <Compile Include="IHaveIdentity.cs" />
+    <Compile Include="IProjectionCache.cs" />
+    <Compile Include="LruProjectionCache.cs" />
+    <Compile Include="PassthroughCache.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="RavenProjectionContext.cs" />
     <Compile Include="RavenProjector.cs" />
