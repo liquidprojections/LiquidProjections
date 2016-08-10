@@ -55,19 +55,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="App_Packages\FluidCaching.Sources\AgeBag.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\CacheStats.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\FluidCache.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\GetKey.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\GetNow.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\IIndex.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\IIndexManagement.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\Index.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\INode.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\IsValid.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\ItemCreator.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\LifespanManager.cs" />
-    <Compile Include="App_Packages\FluidCaching.Sources\Node.cs" />
+    <Compile Include="App_Packages\FluidCaching.Sources\FluidCaching.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="IProjectionCache.cs" />
     <Compile Include="LruProjectionCache.cs" />
