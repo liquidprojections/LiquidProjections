@@ -28,7 +28,7 @@ namespace LiquidProjections.RavenDB.Specs
                     IDocumentStore store = new InMemoryRavenDbBuilder().Build();
                     UseThe(store);
 
-                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, e => e.Version, (p, e) => p.Category = e.Category);
+                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, (p, e) => p.Category = e.Category);
 
                     var ravenProjector = new RavenProjector<ProductCatalogEntry>(
                         store.OpenAsyncSession, maps.GetKey, maps.GetHandler);
@@ -86,7 +86,7 @@ namespace LiquidProjections.RavenDB.Specs
                     IDocumentStore store = new InMemoryRavenDbBuilder().Build();
                     UseThe(store);
 
-                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, e => e.Version, (p, e) => p.Category = e.Category);
+                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, (p, e) => p.Category = e.Category);
 
                     cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
                     cache.Add(new ProductCatalogEntry

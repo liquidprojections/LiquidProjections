@@ -21,10 +21,7 @@ namespace LiquidProjections
                 .Concat()
                 .Subscribe(_ => { }, _ =>
                 {
-                    /*
-                       * Error occurred, avoid default behaviour that would just 
-                       * throw and skip other subscribers from receiving it.
-                       * */
+                    // TODO: Properly handle errors
                 });
         }
     }

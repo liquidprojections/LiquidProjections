@@ -8,9 +8,9 @@ namespace LiquidProjections
     {
         private readonly Dictionary<Type, IEventMap> map = new Dictionary<Type, IEventMap>();
 
-        public void Map<TEvent>(Func<TEvent, string> getKey, Func<TEvent, long> getVersion, Action<TProjection, TEvent> projector)
+        public void Map<TEvent>(Func<TEvent, string> getKey, Action<TProjection, TEvent> projector)
         {
-            Map(getKey, getVersion, (p, e, ctx) =>
+            Map(getKey, (p, e, ctx) =>
             {
                 projector(p, e);
 
@@ -18,16 +18,15 @@ namespace LiquidProjections
             });
         }
 
-        public void Map<TEvent>(Func<TEvent, string> getKey, Func<TEvent, long> getVersion,
-            Func<TProjection, TEvent, Task> projector)
+        public void Map<TEvent>(Func<TEvent, string> getKey, Func<TProjection, TEvent, Task> projector)
         {
-            Map(getKey, getVersion, (p, e, uow) => projector(p, e));
+            Map(getKey, (p, e, uow) => projector(p, e));
         }
 
-        public void Map<TEvent>(Func<TEvent, string> getKey, Func<TEvent, long> getVersion,
+        public void Map<TEvent>(Func<TEvent, string> getKey, 
             Func<TProjection, TEvent, TContext, Task> projector)
         {
-            map[typeof(TEvent)] = new EventMap<TEvent>(getKey, getVersion, projector);
+            map[typeof(TEvent)] = new EventMap<TEvent>(getKey, projector);
         }
 
         public string GetKey(object @event)
@@ -52,8 +51,7 @@ namespace LiquidProjections
             private readonly Func<TEvent, string> getKey;
             private readonly Func<TProjection, TEvent, TContext, Task> projector;
 
-            public EventMap(Func<TEvent, string> getKey, Func<TEvent, long> getVersion,
-                Func<TProjection, TEvent, TContext, Task> projector)
+            public EventMap(Func<TEvent, string> getKey, Func<TProjection, TEvent, TContext, Task> projector)
             {
                 this.getKey = getKey;
                 this.projector = projector;
