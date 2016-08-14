@@ -1,4 +1,3 @@
-using eVision.FlowVision.Infrastructure.Common.Raven.Liquid;
 using Raven.Client;
 
 namespace LiquidProjections.RavenDB

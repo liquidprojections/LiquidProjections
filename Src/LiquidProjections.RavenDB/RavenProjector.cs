@@ -5,23 +5,15 @@ using Raven.Client;
 
 namespace LiquidProjections.RavenDB
 {
-    public delegate string GetEventKey(object @event);
-
-    public delegate Func<TProjection, RavenProjectionContext, Task> GetEventHandler<in TProjection>(object @event);
-
-    public class RavenProjector<TProjection> where TProjection : IHaveIdentity, new()
+    public class RavenProjector<TProjection> where TProjection : class, IHaveIdentity, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
-        private readonly GetEventKey getEventKey;
-        private readonly GetEventHandler<TProjection> getEventHandler;
         private readonly IProjectionCache<TProjection> cache;
+        private readonly ProjectionMap<RavenProjectionContext> map = new ProjectionMap<RavenProjectionContext>();
 
-        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, 
-            GetEventKey getEventKey, GetEventHandler<TProjection> getEventHandler, IProjectionCache<TProjection> cache = null)
+        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
-            this.getEventKey = getEventKey;
-            this.getEventHandler = getEventHandler;
             this.cache = cache ?? new PassthroughCache<TProjection>();
         }
 
@@ -29,33 +21,14 @@ namespace LiquidProjections.RavenDB
         {
             foreach (Transaction transaction in transactions)
             {
-                using (var session = sessionFactory())
+                using (IAsyncDocumentSession session = sessionFactory())
                 {
                     foreach (EventEnvelope @event in transaction.Events)
                     {
-                        Func<TProjection, RavenProjectionContext, Task> handler = getEventHandler(@event.Body);
+                        Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
                         if (handler != null)
                         {
-                            string key = getEventKey(@event.Body);
-
-                            TProjection p = await cache.Get(key, async () => 
-                            {
-                                var projection = await session.LoadAsync<TProjection>(key);
-                                if (projection == null)
-                                {
-                                    projection = new TProjection
-                                    {
-                                        Id = key
-                                    };
-
-                                }
-
-                                return projection;
-                            });
-
-                            await session.StoreAsync(p);
-
-                            await handler(p, new RavenProjectionContext
+                            await handler(new RavenProjectionContext
                             {
                                 Session = session,
                                 StreamId = transaction.StreamId,
@@ -63,12 +36,64 @@ namespace LiquidProjections.RavenDB
                                 Checkpoint = transaction.Checkpoint
                             });
                         }
-
                     }
 
                     await session.SaveChangesAsync();
                 }
             }
+        }
+
+        public Action<TEvent> Map<TEvent>()
+        {
+            return new Action<TEvent>(this);
+        }
+
+        private void Add<TEvent>(Func<TEvent, RavenProjectionContext, Task> action)
+        {
+            map.Map<TEvent>().As(action);
+        }
+
+        public class Action<TEvent>
+        {
+            private readonly RavenProjector<TProjection> ravenProjector;
+
+            public Action(RavenProjector<TProjection> ravenProjector)
+            {
+                this.ravenProjector = ravenProjector;
+            }
+
+            public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, RavenProjectionContext> projector)
+            {
+                AsUpdateOf(selector, (p, e, ctx) =>
+                {
+                    projector(p, e, ctx);
+                    return Task.FromResult(0);
+                });
+            }
+
+            public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, RavenProjectionContext, Task> projector)
+            {
+                ravenProjector.Add<TEvent>(async (@event, ctx) =>
+                {
+                    string key = selector(@event);
+
+                    TProjection projection = await ravenProjector.cache.Get(key, async () =>
+                    {
+                        var p = await ctx.Session.LoadAsync<TProjection>(key);
+                        return p ?? new TProjection
+                        {
+                            Id = key
+                        };
+                    });
+
+                    await projector(projection, @event, ctx);
+
+                    await ctx.Session.StoreAsync(projection);
+                });
+            }
+
+            // TODO: Delete
+            // TODO: Ignore events for which no registration exist
         }
     }
 }
