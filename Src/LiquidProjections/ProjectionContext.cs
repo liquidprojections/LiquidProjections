@@ -1,6 +1,6 @@
 using System;
 
-namespace eVision.FlowVision.Infrastructure.Common.Raven.Liquid
+namespace LiquidProjections
 {
     /// <summary>
     /// Provides contextual information about projecting a commit.

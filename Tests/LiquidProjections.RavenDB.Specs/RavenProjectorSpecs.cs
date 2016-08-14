@@ -14,9 +14,6 @@ namespace LiquidProjections.RavenDB.Specs
         {
             private Transaction transaction;
 
-            private readonly EventMapCollection<ProductCatalogEntry, RavenProjectionContext> maps = 
-                new EventMapCollection<ProductCatalogEntry, RavenProjectionContext>();
-
             private readonly TaskCompletionSource<long> dispatchedCheckpointSource = new TaskCompletionSource<long>();
 
             public When_an_event_is_dispatched()
@@ -28,10 +25,10 @@ namespace LiquidProjections.RavenDB.Specs
                     IDocumentStore store = new InMemoryRavenDbBuilder().Build();
                     UseThe(store);
 
-                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, (p, e) => p.Category = e.Category);
+                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession);
 
-                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(
-                        store.OpenAsyncSession, maps.GetKey, maps.GetHandler);
+                    ravenProjector.Map<ProductAddedToCatalogEvent>()
+                        .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
@@ -71,9 +68,6 @@ namespace LiquidProjections.RavenDB.Specs
 
         public class When_the_projection_was_already_cached : GivenWhenThen
         {
-            private readonly EventMapCollection<ProductCatalogEntry, RavenProjectionContext> maps =
-                new EventMapCollection<ProductCatalogEntry, RavenProjectionContext>();
-
             private readonly TaskCompletionSource<bool> dispatchedSource = new TaskCompletionSource<bool>();
             private LruProjectionCache<ProductCatalogEntry> cache;
 
@@ -86,8 +80,6 @@ namespace LiquidProjections.RavenDB.Specs
                     IDocumentStore store = new InMemoryRavenDbBuilder().Build();
                     UseThe(store);
 
-                    maps.Map<ProductAddedToCatalogEvent>(e => e.ProductKey, (p, e) => p.Category = e.Category);
-
                     cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
                     cache.Add(new ProductCatalogEntry
                     {
@@ -95,8 +87,9 @@ namespace LiquidProjections.RavenDB.Specs
                         Category = "Hybrid"
                     });
 
-                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(
-                        store.OpenAsyncSession, maps.GetKey, maps.GetHandler, cache);
+                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, cache);
+
+                    ravenProjector.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
