@@ -9,5 +9,10 @@ namespace LiquidProjections.RavenDB
         {
             return createProjection();
         }
+
+        public void Remove(string key)
+        {
+            
+        }
     }
 }

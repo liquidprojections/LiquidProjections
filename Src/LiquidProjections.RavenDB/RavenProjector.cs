@@ -55,11 +55,11 @@ namespace LiquidProjections.RavenDB
 
         public class Action<TEvent>
         {
-            private readonly RavenProjector<TProjection> ravenProjector;
+            private readonly RavenProjector<TProjection> parent;
 
-            public Action(RavenProjector<TProjection> ravenProjector)
+            public Action(RavenProjector<TProjection> parent)
             {
-                this.ravenProjector = ravenProjector;
+                this.parent = parent;
             }
 
             public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, RavenProjectionContext> projector)
@@ -73,11 +73,11 @@ namespace LiquidProjections.RavenDB
 
             public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, RavenProjectionContext, Task> projector)
             {
-                ravenProjector.Add<TEvent>(async (@event, ctx) =>
+                parent.Add<TEvent>(async (@event, ctx) =>
                 {
                     string key = selector(@event);
 
-                    TProjection projection = await ravenProjector.cache.Get(key, async () =>
+                    TProjection projection = await parent.cache.Get(key, async () =>
                     {
                         var p = await ctx.Session.LoadAsync<TProjection>(key);
                         return p ?? new TProjection
@@ -92,8 +92,20 @@ namespace LiquidProjections.RavenDB
                 });
             }
 
-            // TODO: Delete
             // TODO: Ignore events for which no registration exist
+            public void AsDeleteOf(Func<TEvent, string> selector)
+            {
+                parent.Add<TEvent>((@event, ctx) =>
+                {
+                    string key = selector(@event);
+
+                    ctx.Session.Delete(key);
+
+                    parent.cache.Remove(key);
+
+                    return Task.FromResult(0);
+                });
+            }
         }
     }
 }
