@@ -10,13 +10,13 @@ namespace LiquidProjections.RavenDB.Specs
 {
     namespace RavenProjectorSpecs
     {
-        public class When_an_event_is_dispatched : GivenWhenThen
+        public class When_an_event_is_mapped_as_an_update_and_no_projection_exists : GivenWhenThen
         {
             private Transaction transaction;
 
             private readonly TaskCompletionSource<long> dispatchedCheckpointSource = new TaskCompletionSource<long>();
 
-            public When_an_event_is_dispatched()
+            public When_an_event_is_mapped_as_an_update_and_no_projection_exists()
             {
                 Given(() =>
                 {
@@ -65,13 +65,83 @@ namespace LiquidProjections.RavenDB.Specs
                 }
             }
         }
-
-        public class When_the_projection_was_already_cached : GivenWhenThen
+        public class When_an_event_is_mapped_as_a_delete : GivenWhenThen
         {
             private readonly TaskCompletionSource<bool> dispatchedSource = new TaskCompletionSource<bool>();
             private LruProjectionCache<ProductCatalogEntry> cache;
 
-            public When_the_projection_was_already_cached()
+            public When_an_event_is_mapped_as_a_delete()
+            {
+                this.GivenAsync(async () =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    IDocumentStore store = new InMemoryRavenDbBuilder().Build();
+                    UseThe(store);
+
+                    using (var session = store.OpenAsyncSession())
+                    {
+                        await session.StoreAsync(new ProductCatalogEntry
+                        {
+                            Id = "c350E"
+                        });
+
+                        await session.SaveChangesAsync();
+                    }
+
+                    cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
+                    cache.Add(new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Hybrid"
+                    });
+
+                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, cache);
+                    ravenProjector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+
+                    var dispatcher = new Dispatcher(The<MemoryEventSource>());
+                    dispatcher.Subscribe(0, async transactions =>
+                    {
+                        await ravenProjector.Handle(transactions);
+                        dispatchedSource.SetResult(true);
+                    });
+
+                });
+
+                this.WhenAsync(async () =>
+                {
+                    The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
+                    {
+                        ProductKey = "c350E",
+                    });
+
+                    await dispatchedSource.Task;
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_remove_the_projection()
+            {
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_remove_it_from_the_cache_as_well()
+            {
+                cache.CurrentCount.Should().Be(0);
+            }
+        }
+
+        public class When_an_event_is_mapped_as_an_update_and_the_projection_was_cached : GivenWhenThen
+        {
+            private readonly TaskCompletionSource<bool> dispatchedSource = new TaskCompletionSource<bool>();
+            private LruProjectionCache<ProductCatalogEntry> cache;
+
+            public When_an_event_is_mapped_as_an_update_and_the_projection_was_cached()
             {
                 Given(() =>
                 {
@@ -99,7 +169,7 @@ namespace LiquidProjections.RavenDB.Specs
                     });
                 });
 
-                When(async () =>
+                this.WhenAsync(async () =>
                 {
                     The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
@@ -144,5 +214,10 @@ namespace LiquidProjections.RavenDB.Specs
         public string Category { get; set; }
 
         public long Version { get; set; }
+    }
+
+    public class ProductDiscontinuedEvent
+    {
+        public string ProductKey { get; set; }
     }
 }

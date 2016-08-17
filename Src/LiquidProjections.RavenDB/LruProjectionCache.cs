@@ -19,9 +19,16 @@ namespace LiquidProjections.RavenDB
 
         public long Misses => cache.Statistics.Misses;
 
+        public long CurrentCount => cache.Statistics.Current;
+
         public Task<TProjection> Get(string key, Func<Task<TProjection>> createProjection)
         {
             return index.GetItem(key, _ => createProjection());
+        }
+
+        public void Remove(string key)
+        {
+            index.Remove(key);
         }
 
         public void Add(TProjection projection)
