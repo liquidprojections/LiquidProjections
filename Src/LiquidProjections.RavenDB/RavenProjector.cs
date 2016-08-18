@@ -43,9 +43,9 @@ namespace LiquidProjections.RavenDB
             }
         }
 
-        public Action<TEvent> Map<TEvent>()
+        public EventMap<TEvent> Map<TEvent>()
         {
-            return new Action<TEvent>(this);
+            return new EventMap<TEvent>(this);
         }
 
         private void Add<TEvent>(Func<TEvent, RavenProjectionContext, Task> action)
@@ -53,11 +53,11 @@ namespace LiquidProjections.RavenDB
             map.Map<TEvent>().As(action);
         }
 
-        public class Action<TEvent>
+        public class EventMap<TEvent>
         {
             private readonly RavenProjector<TProjection> parent;
 
-            public Action(RavenProjector<TProjection> parent)
+            internal EventMap(RavenProjector<TProjection> parent)
             {
                 this.parent = parent;
             }
@@ -92,7 +92,6 @@ namespace LiquidProjections.RavenDB
                 });
             }
 
-            // TODO: Ignore events for which no registration exist
             public void AsDeleteOf(Func<TEvent, string> selector)
             {
                 parent.Add<TEvent>((@event, ctx) =>
@@ -106,6 +105,13 @@ namespace LiquidProjections.RavenDB
                     return Task.FromResult(0);
                 });
             }
+
+            public void As(Func<TEvent, RavenProjectionContext, Task> action)
+            {
+                parent.Add(action);
+            }
+
+            // TODO: Ignore events for which no registration exist
         }
     }
 }
