@@ -65,6 +65,7 @@ namespace LiquidProjections.RavenDB.Specs
                 }
             }
         }
+
         public class When_an_event_is_mapped_as_a_delete : GivenWhenThen
         {
             private readonly TaskCompletionSource<bool> dispatchedSource = new TaskCompletionSource<bool>();
@@ -133,6 +134,74 @@ namespace LiquidProjections.RavenDB.Specs
             public void Then_it_should_remove_it_from_the_cache_as_well()
             {
                 cache.CurrentCount.Should().Be(0);
+            }
+        }
+        public class When_an_event_is_mapped_as_a_custom_action : GivenWhenThen
+        {
+            private readonly TaskCompletionSource<bool> eventProcessed = new TaskCompletionSource<bool>();
+
+            public When_an_event_is_mapped_as_a_custom_action()
+            {
+                this.GivenAsync(async () =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    IDocumentStore store = new InMemoryRavenDbBuilder().Build();
+                    UseThe(store);
+
+                    using (var session = store.OpenAsyncSession())
+                    {
+                        await session.StoreAsync(new ProductCatalogEntry
+                        {
+                            Id = "c350E",
+                            Category = "Hybrids"
+                        });
+
+                        await session.SaveChangesAsync();
+                    }
+
+                    var ravenProjector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession);
+                    ravenProjector.Map<CategoryDiscontinuedEvent>().As(async (e, ctx) =>
+                    {
+                        var entries = await ctx.Session.Query<ProductCatalogEntry>()
+                            .Customize(x => x.WaitForNonStaleResultsAsOfLastWrite())
+                            .Where(en => en.Category == e.Category)
+                            .ToListAsync();
+
+                        foreach (var entry in entries)
+                        {
+                            ctx.Session.Delete(entry);
+                        }
+                    });
+
+                    var dispatcher = new Dispatcher(The<MemoryEventSource>());
+                    dispatcher.Subscribe(0, async transactions =>
+                    {
+                        await ravenProjector.Handle(transactions);
+
+                        eventProcessed.SetResult(true);
+                    });
+                });
+
+                When(() =>
+                {
+                    The<MemoryEventSource>().Write(new CategoryDiscontinuedEvent
+                    {
+                        Category = "Hybrids",
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_have_executed_the_custom_action()
+            {
+                await eventProcessed.Task;
+
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
             }
         }
 
@@ -219,5 +288,10 @@ namespace LiquidProjections.RavenDB.Specs
     public class ProductDiscontinuedEvent
     {
         public string ProductKey { get; set; }
+    }
+
+    public class CategoryDiscontinuedEvent
+    {
+        public string Category { get; set; }
     }
 }
