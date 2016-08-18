@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Reactive.Linq;
+using System.Reactive.PlatformServices;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
@@ -16,6 +17,9 @@ namespace LiquidProjections
 
         public IDisposable Subscribe(long checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
+            // Rx-workaround (it has hardcoded assembly reference which prevents ILMerging the assembly)
+            EnlightenmentProvider.EnsureLoaded();
+
             return eventStore.Subscribe(checkpoint)
                 .Select(transactions => Observable.FromAsync(() => handler(transactions)))
                 .Concat()
