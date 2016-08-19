@@ -39,9 +39,11 @@ namespace LiquidProjections.NEventStore.Specs
 
                 When(() =>
                 {
-                    Subject.Subscribe(null).Subscribe(transactions =>
+                    Subject.Subscribe(null, transactions =>
                     {
                         actualTransaction = transactions.First();
+
+                        return Task.FromResult(0);
                     });
                 });
             }
@@ -78,9 +80,11 @@ namespace LiquidProjections.NEventStore.Specs
 
                 When(() =>
                 {
-                    Subject.Subscribe(null).Subscribe(transactions =>
+                    Subject.Subscribe(null, transactions =>
                     {
                         actualTransaction = transactions.First();
+
+                        return Task.FromResult(0);
                     });
                 });
             }

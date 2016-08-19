@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
@@ -17,17 +18,26 @@ namespace LiquidProjections
             this.batchSize = batchSize;
         }
 
-        public IObservable<IReadOnlyList<Transaction>> Subscribe(long? fromCheckpoint)
+        public IDisposable Subscribe(long? fromCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            var subscriber = new Subscriber(fromCheckpoint ?? 0, history, batchSize);
+            var subscriber = new Subscriber(fromCheckpoint ?? 0, batchSize, handler);
 
             subscribers.Add(subscriber);
+
+            Task.Run(async () =>
+            {
+                foreach (Transaction transaction in history)
+                {
+                    await subscriber.Send(new[] { transaction });
+                }
+
+            }).Wait();
 
             return subscriber;
         }
 
 
-        public Transaction Write(object @event)
+        public async Task<Transaction> Write(object @event)
         {
             Transaction transaction = new Transaction
             {
@@ -40,12 +50,12 @@ namespace LiquidProjections
                 }
             };
 
-            Write(transaction);
+            await Write(transaction);
 
             return transaction;
         }
 
-        public void Write(params Transaction[] transactions)
+        public async Task Write(params Transaction[] transactions)
         {
             foreach (var transaction in transactions)
             {
@@ -55,42 +65,33 @@ namespace LiquidProjections
 
             foreach (var subscriber in subscribers)
             {
-                subscriber.OnNext(transactions);
+                await subscriber.Send(transactions);
             }
         }
     }
 
-    internal class Subscriber : IObservable<IReadOnlyList<Transaction>>, IDisposable
+    internal class Subscriber : IDisposable
     {
         private readonly long fromCheckpoint;
         private readonly int batchSize;
-        private IObserver<IReadOnlyList<Transaction>> observer;
-        private readonly IEnumerable<Transaction> priorTransactions;
-
-        public Subscriber(long fromCheckpoint, IEnumerable<Transaction> transactions, int batchSize)
+        private readonly Func<IReadOnlyList<Transaction>, Task> handler;
+        
+        public Subscriber(long fromCheckpoint, int batchSize, Func<IReadOnlyList<Transaction>, Task> handler)
         {
             this.fromCheckpoint = fromCheckpoint;
             this.batchSize = batchSize;
-            priorTransactions = transactions;
+            this.handler = handler;
         }
 
         public bool Disposed { get; private set; } = false;
 
-        public IDisposable Subscribe(IObserver<IReadOnlyList<Transaction>> observer)
-        {
-            this.observer = observer;
-            OnNext(priorTransactions);
-
-            return this;
-        }
-
-        public void OnNext(IEnumerable<Transaction> transactions)
+        public async Task Send(IEnumerable<Transaction> transactions)
         {
             if (!Disposed)
             {
                 foreach (var batch in transactions.Where(t => t.Checkpoint >= fromCheckpoint).InBatchesOf(batchSize))
                 {
-                    observer.OnNext(batch.ToList().AsReadOnly());
+                    await handler(batch.ToList().AsReadOnly());
                 }
             }
         }

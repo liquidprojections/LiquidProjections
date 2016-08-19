@@ -12,11 +12,10 @@ namespace LiquidProjections.NEventStore
         private readonly object syncRoot = new object();
         private bool isDisposed;
         private long? lastCheckpoint;
-        private readonly IObserver<IReadOnlyList<Transaction>> observer;
-        private volatile bool hasFailed;
+        private readonly Func<IReadOnlyList<Transaction>, Task> observer;
 
         public Subscription(NEventStoreAdapter eventStoreClient, long? checkpoint,
-            IObserver<IReadOnlyList<Transaction>> observer)
+            Func<IReadOnlyList<Transaction>, Task> observer)
         {
             this.eventStoreClient = eventStoreClient;
             lastCheckpoint = checkpoint;
@@ -49,11 +48,6 @@ namespace LiquidProjections.NEventStore
         public void Complete()
         {
             Dispose();
-
-            if (!hasFailed)
-            {
-                observer.OnCompleted();
-            }
         }
 
         public void Dispose()
@@ -92,20 +86,11 @@ namespace LiquidProjections.NEventStore
 
         private async Task RunAsync()
         {
-            try
+            while (!cancellationTokenSource.IsCancellationRequested)
             {
-                while (!cancellationTokenSource.IsCancellationRequested)
-                {
-                    var page = await eventStoreClient.GetNextPage(lastCheckpoint);
-                    observer.OnNext(page.Transactions);
-                    lastCheckpoint = page.LastCheckpoint;
-                }
-            }
-            catch (Exception exception)
-            {
-                hasFailed = true;
-                observer.OnError(exception);
-                throw;
+                var page = await eventStoreClient.GetNextPage(lastCheckpoint);
+                await observer(page.Transactions);
+                lastCheckpoint = page.LastCheckpoint;
             }
         }
     }

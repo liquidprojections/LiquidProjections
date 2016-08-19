@@ -116,10 +116,6 @@ task MergeAssemblies -depends Compile -Description "Merging dependencies" {
 
     Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
         "$SrcDir\LiquidProjections\bin\release\LiquidProjections.dll"
-        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Core.dll"
-        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Interfaces.dll"
-        "$SrcDir\LiquidProjections\bin\release\System.Reactive.Linq.dll"
-        "$SrcDir\LiquidProjections\bin\release\System.Reactive.PlatformServices.dll"
     )
 
     Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.NEventStore.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
