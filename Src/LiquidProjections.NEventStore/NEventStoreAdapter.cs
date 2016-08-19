@@ -29,9 +29,10 @@ namespace LiquidProjections.NEventStore
             transactionCache = new LruCache<long, Transaction>(cacheSize);
         }
 
-        public IObservable<IReadOnlyList<Transaction>> Subscribe(long? checkpoint)
+        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            return new PagesAfterCheckpoint(this, checkpoint);
+            var subscriber = new Subscriber(this, checkpoint);
+            return subscriber.Subscribe(handler);
         }
 
         internal async Task<Page> GetNextPage(long? checkpoint)

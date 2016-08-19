@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Reactive.Linq;
-using System.Reactive.PlatformServices;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
@@ -15,18 +13,11 @@ namespace LiquidProjections
             this.eventStore = eventStore;
         }
 
-        public IDisposable Subscribe(long checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public void Subscribe(long checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            // Rx-workaround (it has hardcoded assembly reference which prevents ILMerging the assembly)
-            EnlightenmentProvider.EnsureLoaded();
+            // TODO: intercept and log errors
 
-            return eventStore.Subscribe(checkpoint)
-                .Select(transactions => Observable.FromAsync(() => handler(transactions)))
-                .Concat()
-                .Subscribe(_ => { }, _ =>
-                {
-                    // TODO: Properly handle errors
-                });
+            eventStore.Subscribe(checkpoint, handler);
         }
     }
 }

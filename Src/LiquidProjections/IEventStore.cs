@@ -1,10 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
     public interface IEventStore
     {
-        IObservable<IReadOnlyList<Transaction>> Subscribe(long? checkpoint);
+        IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler);
     }
 }

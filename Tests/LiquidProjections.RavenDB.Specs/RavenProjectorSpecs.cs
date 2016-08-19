@@ -51,9 +51,9 @@ namespace LiquidProjections.RavenDB.Specs
                         .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
                 });
 
-                When(() =>
+                this.WhenAsync(async () =>
                 {
-                    transaction = The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
                         ProductKey = "c350E",
                         Category = "Hybrid",
