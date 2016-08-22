@@ -9,7 +9,7 @@ namespace LiquidProjections.RavenDB
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly IProjectionCache<TProjection> cache;
-        private readonly ProjectionMap<RavenProjectionContext> map = new ProjectionMap<RavenProjectionContext>();
+        private readonly EventMap<RavenProjectionContext> map = new EventMap<RavenProjectionContext>();
 
         public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IProjectionCache<TProjection> cache = null)
         {
@@ -21,31 +21,36 @@ namespace LiquidProjections.RavenDB
         {
             foreach (Transaction transaction in transactions)
             {
-                using (IAsyncDocumentSession session = sessionFactory())
-                {
-                    foreach (EventEnvelope @event in transaction.Events)
-                    {
-                        Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
-                        if (handler != null)
-                        {
-                            await handler(new RavenProjectionContext
-                            {
-                                Session = session,
-                                StreamId = transaction.StreamId,
-                                TimeStampUtc = transaction.TimeStampUtc,
-                                Checkpoint = transaction.Checkpoint
-                            });
-                        }
-                    }
+                IAsyncDocumentSession session = null;
 
+                foreach (EventEnvelope @event in transaction.Events)
+                {
+                    Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
+                    if (handler != null)
+                    {
+                        if (session == null)
+                            session = sessionFactory();
+
+                        await handler(new RavenProjectionContext
+                        {
+                            Session = session,
+                            StreamId = transaction.StreamId,
+                            TimeStampUtc = transaction.TimeStampUtc,
+                            Checkpoint = transaction.Checkpoint
+                        });
+                    }
+                }
+
+                if (session != null)
+                {
                     await session.SaveChangesAsync();
                 }
             }
         }
 
-        public EventMap<TEvent> Map<TEvent>()
+        public EventAction<TEvent> Map<TEvent>()
         {
-            return new EventMap<TEvent>(this);
+            return new EventAction<TEvent>(this);
         }
 
         private void Add<TEvent>(Func<TEvent, RavenProjectionContext, Task> action)
@@ -53,11 +58,11 @@ namespace LiquidProjections.RavenDB
             map.Map<TEvent>().As(action);
         }
 
-        public class EventMap<TEvent>
+        public class EventAction<TEvent>
         {
             private readonly RavenProjector<TProjection> parent;
 
-            internal EventMap(RavenProjector<TProjection> parent)
+            internal EventAction(RavenProjector<TProjection> parent)
             {
                 this.parent = parent;
             }
@@ -71,7 +76,8 @@ namespace LiquidProjections.RavenDB
                 });
             }
 
-            public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, RavenProjectionContext, Task> projector)
+            public void AsUpdateOf(Func<TEvent, string> selector,
+                Func<TProjection, TEvent, RavenProjectionContext, Task> projector)
             {
                 parent.Add<TEvent>(async (@event, ctx) =>
                 {
@@ -81,9 +87,9 @@ namespace LiquidProjections.RavenDB
                     {
                         var p = await ctx.Session.LoadAsync<TProjection>(key);
                         return p ?? new TProjection
-                        {
-                            Id = key
-                        };
+                               {
+                                   Id = key
+                               };
                     });
 
                     await projector(projection, @event, ctx);

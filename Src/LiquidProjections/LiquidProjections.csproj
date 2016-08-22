@@ -56,7 +56,7 @@
     <Compile Include="Dispatcher.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="EventEnvelope.cs" />
-    <Compile Include="ProjectionMap.cs" />
+    <Compile Include="EventMap.cs" />
     <Compile Include="IEventStore.cs" />
     <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />

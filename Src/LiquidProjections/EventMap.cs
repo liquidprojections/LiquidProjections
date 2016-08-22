@@ -4,18 +4,31 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
-    public class ProjectionMap<TContext> where TContext : ProjectionContext
+    /// <summary>
+    /// Represents a simple map between events and actions which can be used by projectors.
+    /// </summary>
+    /// <typeparam name="TContext"></typeparam>
+    public class EventMap<TContext> where TContext : ProjectionContext
     {
         private readonly IDictionary<Type, IHandler> mappings = new Dictionary<Type, IHandler>();
 
-        public Action<TEvent> Map<TEvent>()
+
+        /// <summary>
+        /// Maps <typeparamref name="TEvent"/> to an action.
+        /// </summary>
+        public EventAction<TEvent> Map<TEvent>()
         {
-            return new Action<TEvent>(this);
+            return new EventAction<TEvent>(this);
         }
 
+        /// <summary>
+        /// Gets an asynchronous handler for <paramref name="event"/> or <c>null</c> if no handler
+        /// has been registered.
+        /// </summary>
         public Func<TContext, Task> GetHandler(object @event)
         {
-            return mappings[@event.GetType()].GetHandler(@event);
+            Type key = @event.GetType();
+            return mappings.ContainsKey(key) ? mappings[key].GetHandler(@event) : null;
         }
 
         private void Add(Type type, IHandler handler)
@@ -23,11 +36,11 @@ namespace LiquidProjections
             mappings.Add(type, handler);
         }
 
-        public class Action<TEvent>
+        public class EventAction<TEvent>
         {
-            private readonly ProjectionMap<TContext> parent;
+            private readonly EventMap<TContext> parent;
 
-            public Action(ProjectionMap<TContext> parent)
+            public EventAction(EventMap<TContext> parent)
             {
                 this.parent = parent;
             }

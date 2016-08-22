@@ -105,7 +105,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                 this.WhenAsync(async () =>
                 {
-                    The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
+                    await The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
                     {
                         ProductKey = "c350E",
                     });
@@ -161,9 +161,9 @@ namespace LiquidProjections.RavenDB.Specs
                     });
                 });
 
-                When(() =>
+                this.WhenAsync(async () =>
                 {
-                    The<MemoryEventSource>().Write(new CategoryDiscontinuedEvent
+                    await The<MemoryEventSource>().Write(new CategoryDiscontinuedEvent
                     {
                         Category = "Hybrids",
                     });
@@ -200,7 +200,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                 this.WhenAsync(async () =>
                 {
-                    The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
                         ProductKey = "c350E",
                         Category = "Hybrid",
@@ -227,6 +227,38 @@ namespace LiquidProjections.RavenDB.Specs
 
                     entry.Category.Should().Be("Hybrid");
                 }
+            }
+        }
+        public class When_an_event_is_not_mapped_at_all : Given_a_raven_projector_with_an_inmemory_event_source
+        {
+            public When_an_event_is_not_mapped_at_all()
+            {
+                Given(() =>
+                {
+                    Cache.Add(new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+
+                this.WhenAsync(async () =>
+                {
+                    await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid",
+                        Version = 0
+                    });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public void Then_it_should_not_do_anything()
+            {
+                Cache.Hits.Should().Be(0);
             }
         }
     }
