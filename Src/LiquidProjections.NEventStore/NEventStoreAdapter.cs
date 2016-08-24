@@ -12,6 +12,7 @@ namespace LiquidProjections.NEventStore
     {
         private readonly TimeSpan pollInterval;
         private readonly int maxPageSize;
+        private readonly Func<DateTime> getUtcNow;
         private readonly IPersistStreams eventStore;
         internal readonly HashSet<Subscription> subscriptions = new HashSet<Subscription>();
         internal volatile bool isDisposed;
@@ -21,11 +22,12 @@ namespace LiquidProjections.NEventStore
         private readonly CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
         private CheckpointRequestTimestamp lastExistingCheckpointRequest;
 
-        public NEventStoreAdapter(IPersistStreams eventStore, int cacheSize, TimeSpan pollInterval, int maxPageSize)
+        public NEventStoreAdapter(IPersistStreams eventStore, int cacheSize, TimeSpan pollInterval, int maxPageSize, Func<DateTime> getUtcNow)
         {
             this.eventStore = eventStore;
             this.pollInterval = pollInterval;
             this.maxPageSize = maxPageSize;
+            this.getUtcNow = getUtcNow;
             transactionCache = new LruCache<long, Transaction>(cacheSize);
         }
 
@@ -107,7 +109,7 @@ namespace LiquidProjections.NEventStore
                 if ((effectiveLastExistingCheckpointRequest != null) &&
                     (effectiveLastExistingCheckpointRequest.Checkpoint == checkpoint))
                 {
-                    TimeSpan timeAfterPreviousRequest = DateTime.UtcNow - effectiveLastExistingCheckpointRequest.DateTimeUtc;
+                    TimeSpan timeAfterPreviousRequest = getUtcNow() - effectiveLastExistingCheckpointRequest.DateTimeUtc;
 
                     if (timeAfterPreviousRequest < pollInterval)
                     {
@@ -190,7 +192,7 @@ namespace LiquidProjections.NEventStore
                 return cachedPage;
             }
 
-            DateTime timeOfRequestUtc = DateTime.UtcNow;
+            DateTime timeOfRequestUtc = getUtcNow();
 
             List<Transaction> transactions = await Task.Run(() =>
             {
@@ -227,6 +229,12 @@ namespace LiquidProjections.NEventStore
                 }
 
                 transactionCache.Set(checkpoint ?? 0, transactions[0]);
+            }
+            else
+            {
+                Volatile.Write(
+                    ref lastExistingCheckpointRequest,
+                    new CheckpointRequestTimestamp(checkpoint ?? 0, timeOfRequestUtc));
             }
 
             return new Page(checkpoint, transactions);

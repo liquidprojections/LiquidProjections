@@ -169,5 +169,5 @@ Output/*
 
 #Visual Studio 2015 files
 **/*.sln.ide/**
-Sources/_NCrunch_IntegrationHub/
+_NCrunch_LiquidProjections/
 Artifacts/**

@@ -34,7 +34,7 @@ namespace LiquidProjections.NEventStore.Specs
                     A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
                     A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Throws(new ApplicationException()).Once();
 
-                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100));
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow));
                 });
 
                 When(() =>
@@ -75,7 +75,7 @@ namespace LiquidProjections.NEventStore.Specs
                     var eventStore = A.Fake<IPersistStreams>();
                     A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {The<ICommit>()});
 
-                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100));
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow));
                 });
 
                 When(() =>
@@ -105,6 +105,46 @@ namespace LiquidProjections.NEventStore.Specs
                 actualTransaction.StreamId.Should().Be(commit.StreamId);
 
                 actualTransaction.Events.ShouldBeEquivalentTo(commit.Events, options => options.ExcludingMissingMembers());
+            }
+        }
+        public class When_there_are_no_more_commits : GivenSubject<NEventStoreAdapter>
+        {
+            private readonly TimeSpan pollingInterval = 500.Milliseconds();
+            private DateTime utcNow = DateTime.UtcNow;
+            private IPersistStreams eventStore;
+            private TaskCompletionSource<object> eventStoreQueriedSource = new TaskCompletionSource<object>();
+
+            public When_there_are_no_more_commits()
+            {
+                Given(() =>
+                {
+                    eventStore = A.Fake<IPersistStreams>();
+                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored))
+                    .Invokes(_ =>
+                    {
+                        eventStoreQueriedSource.SetResult(null);
+                    })
+                    .Returns(new ICommit[0]);
+
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => utcNow));
+
+                    Subject.Subscribe(1000, transactions => Task.FromResult(0));
+                });
+
+                this.WhenAsync(async () =>
+                {
+                    await eventStoreQueriedSource.Task;
+                });
+            }
+
+            [Fact]
+            public void Then_it_should_wait_for_the_polling_interval_to_retry()
+            {
+                A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).MustHaveHappened(Repeated.Exactly.Once);
+
+                utcNow = utcNow.Add(1.Seconds());
+
+                A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).MustHaveHappened(Repeated.Exactly.Once);
             }
         }
     }

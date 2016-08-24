@@ -80,6 +80,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ChillExtensions.cs" />
     <Compile Include="CommitBuilder.cs" />
     <Compile Include="Event.cs" />
     <Compile Include="EventMessageBuilder.cs" />
@@ -99,6 +100,9 @@
       <Project>{20506F22-9A20-4C07-B3DF-163CA338030F}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
