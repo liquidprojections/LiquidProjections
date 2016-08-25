@@ -64,8 +64,8 @@ namespace LiquidProjections.NEventStore.Specs
         public class When_a_commit_is_persisted : GivenSubject<NEventStoreAdapter>
         {
             private readonly TimeSpan pollingInterval = 1.Seconds();
-            private Transaction actualTransaction;
-
+            private TaskCompletionSource<Transaction> transactionHandledSource = new TaskCompletionSource<Transaction>();
+            
             public When_a_commit_is_persisted()
             {
                 Given(() =>
@@ -82,7 +82,7 @@ namespace LiquidProjections.NEventStore.Specs
                 {
                     Subject.Subscribe(null, transactions =>
                     {
-                        actualTransaction = transactions.First();
+                        transactionHandledSource.SetResult(transactions.First());
 
                         return Task.FromResult(0);
                     });
@@ -92,11 +92,7 @@ namespace LiquidProjections.NEventStore.Specs
             [Fact]
             public async Task Then_it_should_convert_the_commit_details_to_a_transaction()
             {
-                do
-                {
-                    await Task.Delay(pollingInterval);
-                }
-                while (actualTransaction == null);
+                Transaction actualTransaction = await transactionHandledSource.Task;
 
                 var commit = The<ICommit>();
                 actualTransaction.Id.Should().Be(commit.CommitId.ToString());
