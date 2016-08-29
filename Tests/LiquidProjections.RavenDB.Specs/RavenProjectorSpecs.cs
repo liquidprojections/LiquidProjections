@@ -10,13 +10,13 @@ namespace LiquidProjections.RavenDB.Specs
 {
     namespace RavenProjectorSpecs
     {
-        public class Given_a_raven_projector_with_an_inmemory_event_source : GivenWhenThen
+        public class Given_a_raven_projector_with_an_in_memory_event_source : GivenWhenThen
         {
             protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
             protected RavenProjector<ProductCatalogEntry> Projector;
             protected LruProjectionCache<ProductCatalogEntry> Cache;
 
-            public Given_a_raven_projector_with_an_inmemory_event_source()
+            public Given_a_raven_projector_with_an_in_memory_event_source()
             {
                 Given(() =>
                 {
@@ -39,11 +39,11 @@ namespace LiquidProjections.RavenDB.Specs
             }
         }
 
-        public class When_an_event_is_mapped_as_an_update_and_no_projection_exists : Given_a_raven_projector_with_an_inmemory_event_source
+        public class When_an_event_requires_an_update_of_a_non_existing_projection : Given_a_raven_projector_with_an_in_memory_event_source
         {
             private Transaction transaction;
 
-            public When_an_event_is_mapped_as_an_update_and_no_projection_exists()
+            public When_an_event_requires_an_update_of_a_non_existing_projection()
             {
                 Given(() =>
                 {
@@ -78,9 +78,9 @@ namespace LiquidProjections.RavenDB.Specs
             }
         }
 
-        public class When_an_event_is_mapped_as_a_delete : Given_a_raven_projector_with_an_inmemory_event_source
+        public class When_an_event_deletes_a_loaded_projection : Given_a_raven_projector_with_an_in_memory_event_source
         {
-            public When_an_event_is_mapped_as_a_delete()
+            public When_an_event_deletes_a_loaded_projection()
             {
                 this.GivenAsync(async () =>
                 {
@@ -130,9 +130,53 @@ namespace LiquidProjections.RavenDB.Specs
                 Cache.CurrentCount.Should().Be(0);
             }
         }
-        public class When_an_event_is_mapped_as_a_custom_action : Given_a_raven_projector_with_an_inmemory_event_source
+        
+        public class When_an_event_deletes_an_unloaded_projection : Given_a_raven_projector_with_an_in_memory_event_source
         {
-            public When_an_event_is_mapped_as_a_custom_action()
+            public When_an_event_deletes_an_unloaded_projection()
+            {
+                Given(() =>
+                {
+                    Cache.Add(new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Hybrid"
+                    });
+
+                    Projector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                });
+
+                this.WhenAsync(async () =>
+                {
+                    await The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
+                    {
+                        ProductKey = "c350E",
+                    });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_remove_the_projection()
+            {
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_remove_it_from_the_cache_as_well()
+            {
+                Cache.CurrentCount.Should().Be(0);
+            }
+        }
+
+        public class When_an_event_requires_as_a_custom_action : Given_a_raven_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_as_a_custom_action()
             {
                 this.GivenAsync(async () =>
                 {
@@ -183,9 +227,9 @@ namespace LiquidProjections.RavenDB.Specs
             }
         }
 
-        public class When_an_event_is_mapped_as_an_update_and_the_projection_was_cached : Given_a_raven_projector_with_an_inmemory_event_source
+        public class When_an_event_requires_an_update_of_a_cached__projection : Given_a_raven_projector_with_an_in_memory_event_source
         {
-            public When_an_event_is_mapped_as_an_update_and_the_projection_was_cached()
+            public When_an_event_requires_an_update_of_a_cached__projection()
             {
                 Given(() =>
                 {
@@ -229,7 +273,8 @@ namespace LiquidProjections.RavenDB.Specs
                 }
             }
         }
-        public class When_an_event_is_not_mapped_at_all : Given_a_raven_projector_with_an_inmemory_event_source
+
+        public class When_an_event_is_not_mapped_at_all : Given_a_raven_projector_with_an_in_memory_event_source
         {
             public When_an_event_is_not_mapped_at_all()
             {

@@ -43,7 +43,14 @@ namespace LiquidProjections.RavenDB
 
                 if (session != null)
                 {
-                    await session.SaveChangesAsync();
+                    try
+                    {
+                        await session.SaveChangesAsync();
+                    }
+                    catch (Exception)
+                    {
+                        throw;
+                    }
                 }
             }
         }
@@ -100,15 +107,20 @@ namespace LiquidProjections.RavenDB
 
             public void AsDeleteOf(Func<TEvent, string> selector)
             {
-                parent.Add<TEvent>((@event, ctx) =>
+                parent.Add<TEvent>(async (@event, ctx) =>
                 {
                     string key = selector(@event);
 
-                    ctx.Session.Delete(key);
+                    if (ctx.Session.Advanced.IsLoaded(key))
+                    {
+                        ctx.Session.Delete(key);
+                    }
+                    else
+                    {
+                        await ctx.Session.Advanced.DocumentStore.AsyncDatabaseCommands.DeleteAsync(key, null);
+                    }
 
                     parent.cache.Remove(key);
-
-                    return Task.FromResult(0);
                 });
             }
 
@@ -116,8 +128,6 @@ namespace LiquidProjections.RavenDB
             {
                 parent.Add(action);
             }
-
-            // TODO: Ignore events for which no registration exist
         }
     }
 }
