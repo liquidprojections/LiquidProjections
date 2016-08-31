@@ -78,9 +78,9 @@ namespace LiquidProjections.RavenDB.Specs
             }
         }
 
-        public class When_an_event_deletes_a_loaded_projection : Given_a_raven_projector_with_an_in_memory_event_source
+        public class When_an_unloaded_projection_must_be_deleted : Given_a_raven_projector_with_an_in_memory_event_source
         {
-            public When_an_event_deletes_a_loaded_projection()
+            public When_an_unloaded_projection_must_be_deleted()
             {
                 this.GivenAsync(async () =>
                 {
@@ -219,6 +219,45 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 await DispatchedCheckpointSource.Task;
 
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+        }
+
+        public class When_a_modified_projection_must_be_deleted : Given_a_raven_projector_with_an_in_memory_event_source
+        {
+            public When_a_modified_projection_must_be_deleted()
+            {
+                Given(() =>
+                {
+                    Projector.Map<ProductAddedToCatalogEvent>()
+                        .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+
+                    Projector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                });
+
+                this.WhenAsync(async () =>
+                {
+                    await The<MemoryEventSource>().Write(
+                        new ProductAddedToCatalogEvent
+                        {
+                            ProductKey = "c350E",
+                            Category = "Hybrids"
+                        }, new ProductDiscontinuedEvent
+                        {
+                            ProductKey = "c350E",
+                        });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_remove_the_projection()
+            {
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
                     var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
