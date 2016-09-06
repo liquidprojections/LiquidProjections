@@ -56,6 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="App_Packages\FluidCaching.Sources\FluidCaching.cs" />
+    <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="IProjectionCache.cs" />
     <Compile Include="LruProjectionCache.cs" />

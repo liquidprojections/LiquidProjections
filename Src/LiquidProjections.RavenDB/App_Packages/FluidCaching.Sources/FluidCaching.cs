@@ -244,20 +244,26 @@ namespace FluidCaching
             bool isDuplicate = (node != null) && (node.Value == item);
             if (!isDuplicate)
             {
-                node = lifeSpan.Add(item);
-            }
+                var newNode = new Node<T>(lifeSpan, item);
 
-            foreach (KeyValuePair<string, IIndexManagement<T>> keyValue in indexList)
-            {
-                if (keyValue.Value.AddItem(node))
+                foreach (KeyValuePair<string, IIndexManagement<T>> keyValue in indexList)
                 {
-                    isDuplicate = true;
+                    if (!keyValue.Value.AddItem(newNode))
+                    {
+                        isDuplicate = true;
+                    }
                 }
-            }
 
-            if (!isDuplicate)
-            {
-                lifeSpan.Statistics.RegisterItem();
+                if (!isDuplicate)
+                {
+                    node = newNode;
+                    newNode.Touch();
+                    lifeSpan.Statistics.RegisterItem();
+                }
+                else
+                {
+                    node = FindExistingNode(item);
+                }
             }
 
             return node;
@@ -385,7 +391,7 @@ namespace FluidCaching
     {
         private readonly FluidCache<T> owner;
         private readonly LifespanManager<T> lifespanManager;
-        private ConcurrentDictionary<TKey, WeakReference<INode<T>>> index;
+        private Dictionary<TKey, WeakReference<INode<T>>> index;
         private readonly GetKey<T, TKey> _getKey;
         private readonly ItemCreator<TKey, T> loadItem;
         
@@ -401,7 +407,7 @@ namespace FluidCaching
             Debug.Assert(getKey != null, "GetKey delegate required");
             this.owner = owner;
             this.lifespanManager = lifespanManager;
-            index = new ConcurrentDictionary<TKey, WeakReference<INode<T>>>();
+            index = new Dictionary<TKey, WeakReference<INode<T>>>();
             _getKey = getKey;
             this.loadItem = loadItem;
             RebuildIndex();
@@ -421,10 +427,19 @@ namespace FluidCaching
             lifespanManager.CheckValidity();
 
             ItemCreator<TKey, T> creator = createItem ?? this.loadItem;
-
             if ((node?.Value == null) && (creator != null))
             {
-                node = owner.AddAsNode(await creator(key));
+                T value = await creator(key);
+
+                lock (this)
+                {
+                    node = FindExistingNodeByKey(key);
+                    if (node?.Value == null)
+                    {
+                        node = owner.AddAsNode(value);
+                    }
+                }
+
             }
 
             return node?.Value;
@@ -462,27 +477,44 @@ namespace FluidCaching
         /// <summary>Remove all items from index</summary>
         public void ClearIndex()
         {
-            index.Clear();
+            lock (this)
+            {
+                index.Clear();
+            }
         }
 
         /// <summary>AddAsNode new item to index</summary>
         /// <param name="item">item to add</param>
-        /// <returns>was item key previously contained in index</returns>
+        /// <returns>
+        /// Returns <c>true</c> if the item could be added to the index, or <c>false</c> otherwise.
+        /// </returns>
         public bool AddItem(INode<T> item)
         {
-            TKey key = _getKey(item.Value);
-            return !index.TryAdd(key, new WeakReference<INode<T>>(item, false));
+            lock (this)
+            {
+                TKey key = _getKey(item.Value);
+
+                INode<T> node;
+                if (!index.ContainsKey(key) || !index[key].TryGetTarget(out node) || node.Value == null)
+                {
+                    index[key] = new WeakReference<INode<T>>(item, trackResurrection: false);
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         /// <summary>removes all items from index and reloads each item (this gets rid of dead nodes)</summary>
         public int RebuildIndex()
         {
-            lock (lifespanManager)
+            lock (this)
             {
                 // Create a new ConcurrentDictionary, this way there is no need for locking the index itself
-                var keyValues = lifespanManager.Select(item => new KeyValuePair<TKey, WeakReference<INode<T>>>(_getKey(item.Value), new WeakReference<INode<T>>(item)));
+                var keyValues = lifespanManager
+                    .ToDictionary(item => _getKey(item.Value), item => new WeakReference<INode<T>>(item));
 
-                index = new ConcurrentDictionary<TKey, WeakReference<INode<T>>>(keyValues);
+                index = new Dictionary<TKey, WeakReference<INode<T>>>(keyValues);
                 return index.Count;
             }
         }
@@ -576,11 +608,6 @@ namespace FluidCaching
 
         public IsValid ValidateCache { get; set; }
 
-        public INode<T> Add(T value)
-        {
-            return new Node<T>(this, value);
-        }
-
         /// <summary>checks to see if cache is still valid and if LifespanMgr needs to do maintenance</summary>
         public void CheckValidity()
         {
@@ -644,8 +671,7 @@ namespace FluidCaching
                             {
                                 // item has not been touched since bag was closed, so remove it from LifespanMgr
                                 ++itemsToRemove;
-                                node.Bag = null;
-                                Statistics.UnregisterItem();
+                                node.Remove();
                             }
                             else
                             {
@@ -691,8 +717,7 @@ namespace FluidCaching
                     while (node != null)
                     {
                         Node<T> next = node.Next;
-                        node.Next = null;
-                        node.Bag = null;
+                        node.Remove();
                         node = next;
                     }
                 }
@@ -790,7 +815,6 @@ namespace FluidCaching
         {
             this.manager = manager;
             Value = value;
-            Touch();
         }
 
         /// <summary>returns the object</summary>
@@ -798,7 +822,7 @@ namespace FluidCaching
 
         public Node<T> Next { get; set; }
 
-        public AgeBag<T> Bag { get; set; }
+        public AgeBag<T> Bag { get; private set; }
 
         /// <summary>
         /// Updates the status of the node to prevent it from being dropped from cache
@@ -836,11 +860,18 @@ namespace FluidCaching
         {
             if ((Bag != null) && (Value != null))
             {
-                manager.UnregisterFromLifespanManager();
-            }
+                lock (this)
+                {
+                    if ((Bag != null) && (Value != null))
+                    {
+                        manager.UnregisterFromLifespanManager();
 
-            Value = null;
-            Bag = null;
+                        Value = null;
+                        Bag = null;
+                        Next = null;
+                    }
+                }
+            }
         }
     }
 }

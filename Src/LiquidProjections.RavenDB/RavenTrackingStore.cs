@@ -13,16 +13,6 @@ namespace LiquidProjections.RavenDB
             this.sessionFactory = sessionFactory;
         }
 
-        public async Task<long?> LoadCheckpoint(string projectorId)
-        {
-            using (IAsyncDocumentSession session = sessionFactory())
-            {
-                var state = await session.LoadAsync<ProjectorState>("Checkpoint/" + projectorId);
-
-                return state?.Checkpoint;
-            }
-        }
-
         public async Task SaveCheckpoint(string projectorId, long checkpoint)
         {
             using (IAsyncDocumentSession session = sessionFactory())

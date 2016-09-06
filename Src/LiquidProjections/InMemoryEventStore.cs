@@ -37,17 +37,14 @@ namespace LiquidProjections
         }
 
 
-        public async Task<Transaction> Write(object @event)
+        public async Task<Transaction> Write(params object[] events)
         {
             Transaction transaction = new Transaction
             {
-                Events =
+                Events = events.Select(@event => new EventEnvelope
                 {
-                    new EventEnvelope
-                    {
-                        Body = @event
-                    }
-                }
+                    Body = @event
+                }).ToArray()
             };
 
             await Write(transaction);

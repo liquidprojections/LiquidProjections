@@ -11,11 +11,6 @@ namespace LiquidProjections
             this.store = store;
         }
 
-        public async Task<long?> GetLastCheckpoint(string projectorId)
-        {
-            return await store.LoadCheckpoint(projectorId);
-        }
-
         public Task SaveCheckpoint(string projectorId, long checkpoint)
         {
             return store.SaveCheckpoint(projectorId, checkpoint);
