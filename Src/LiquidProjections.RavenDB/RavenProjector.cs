@@ -8,50 +8,79 @@ namespace LiquidProjections.RavenDB
     public class RavenProjector<TProjection> where TProjection : class, IHaveIdentity, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
+        private readonly int batchSize;
         private readonly IProjectionCache<TProjection> cache;
         private readonly EventMap<RavenProjectionContext> map = new EventMap<RavenProjectionContext>();
 
-        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IProjectionCache<TProjection> cache = null)
+        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, int batchSize = 1, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
+            this.batchSize = batchSize;
             this.cache = cache ?? new PassthroughCache<TProjection>();
         }
-
+        
+        /// <summary>
+        /// Instructs the projector to project a collection of ordered transactions in batches as defined in the constructor.
+        /// </summary>
+        /// <param name="transactions">
+        /// </param>
         public async Task Handle(IEnumerable<Transaction> transactions)
         {
-            foreach (Transaction transaction in transactions)
+            foreach (IList<Transaction> batch in transactions.InBatchesOf(batchSize))
             {
                 IAsyncDocumentSession session = null;
 
-                foreach (EventEnvelope @event in transaction.Events)
+                foreach (Transaction transaction in batch)
                 {
-                    Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
-                    if (handler != null)
+                    foreach (EventEnvelope @event in transaction.Events)
                     {
-                        if (session == null)
-                            session = sessionFactory();
-
-                        await handler(new RavenProjectionContext
+                        Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
+                        if (handler != null)
                         {
-                            Session = session,
-                            StreamId = transaction.StreamId,
-                            TimeStampUtc = transaction.TimeStampUtc,
-                            Checkpoint = transaction.Checkpoint
-                        });
+                            if (session == null)
+                            {
+                                session = sessionFactory();
+                            }
+
+                            await handler(new RavenProjectionContext
+                            {
+                                Session = session,
+                                StreamId = transaction.StreamId,
+                                TimeStampUtc = transaction.TimeStampUtc,
+                                Checkpoint = transaction.Checkpoint
+                            });
+                        }
+                    }
+
+                    if (session != null)
+                    {
+                        string key = "RavenCheckpoints/" + typeof(TProjection).Name;
+
+                        var state = await session.LoadAsync<ProjectorState>(key) ?? new ProjectorState
+                        {
+                            Id = key
+                        };
+
+                        state.Checkpoint = transaction.Checkpoint;
+                        state.LastUpdateUtc = DateTime.UtcNow;
+                        
+                        await session.StoreAsync(state);
                     }
                 }
 
                 if (session != null)
                 {
-                    try
-                    {
-                        await session.SaveChangesAsync();
-                    }
-                    catch (Exception)
-                    {
-                        throw;
-                    }
+                    await session.SaveChangesAsync();
                 }
+            }
+        }
+
+        public async Task<long?> GetLastCheckpoint()
+        {
+            using (var session = sessionFactory())
+            {
+                var state = await session.LoadAsync<ProjectorState>("RavenCheckpoints/" + typeof(TProjection).Name);
+                return state?.Checkpoint;
             }
         }
 
@@ -88,15 +117,15 @@ namespace LiquidProjections.RavenDB
             {
                 parent.Add<TEvent>(async (@event, ctx) =>
                 {
-                    string key = selector(@event);
+                    string key = typeof(TProjection).Name + "/" + selector(@event);
 
                     TProjection projection = await parent.cache.Get(key, async () =>
                     {
                         var p = await ctx.Session.LoadAsync<TProjection>(key);
                         return p ?? new TProjection
-                               {
-                                   Id = key
-                               };
+                        {
+                            Id = key
+                        };
                     });
 
                     await projector(projection, @event, ctx);
@@ -109,11 +138,12 @@ namespace LiquidProjections.RavenDB
             {
                 parent.Add<TEvent>(async (@event, ctx) =>
                 {
-                    string key = selector(@event);
+                    string key = typeof(TProjection).Name + "/" + selector(@event);
 
                     if (ctx.Session.Advanced.IsLoaded(key))
                     {
-                        ctx.Session.Delete(key);
+                        var projection = await ctx.Session.LoadAsync<TProjection>(key);
+                        ctx.Session.Delete(projection);
                     }
                     else
                     {
@@ -129,5 +159,14 @@ namespace LiquidProjections.RavenDB
                 parent.Add(action);
             }
         }
+    }
+
+    internal class ProjectorState
+    {
+        public string Id { get; set; }
+
+        public long Checkpoint { get; set; }
+
+        public DateTime LastUpdateUtc { get; set; }
     }
 }

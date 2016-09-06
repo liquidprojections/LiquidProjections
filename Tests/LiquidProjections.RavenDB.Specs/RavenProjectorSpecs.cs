@@ -27,7 +27,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                     Cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
 
-                    Projector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, Cache);
+                    Projector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, 10, Cache);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
@@ -63,18 +63,25 @@ namespace LiquidProjections.RavenDB.Specs
             }
 
             [Fact]
-            public async Task Then_it_should_update_the_projection()
+            public async Task Then_it_should_create_a_new_projection()
             {
                 long lastCheckpoint = await DispatchedCheckpointSource.Task;
                 lastCheckpoint.Should().Be(transaction.Checkpoint);
 
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().NotBeNull();
 
                     entry.Category.Should().Be("Hybrid");
                 }
+            }
+            
+            [Fact]
+            public async Task Then_it_should_track_the_transaction_checkpoint()
+            {
+                var checkpoint = await Projector.GetLastCheckpoint();
+                checkpoint.Should().Be(transaction.Checkpoint);
             }
         }
 
@@ -88,7 +95,7 @@ namespace LiquidProjections.RavenDB.Specs
                     {
                         await session.StoreAsync(new ProductCatalogEntry
                         {
-                            Id = "c350E"
+                            Id = "ProductCatalogEntry/c350E"
                         });
 
                         await session.SaveChangesAsync();
@@ -96,7 +103,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                     Cache.Add(new ProductCatalogEntry
                     {
-                        Id = "c350E",
+                        Id = "ProductCatalogEntry/c350E",
                         Category = "Hybrid"
                     });
 
@@ -119,7 +126,7 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().BeNull();
                 }
             }
@@ -139,7 +146,7 @@ namespace LiquidProjections.RavenDB.Specs
                 {
                     Cache.Add(new ProductCatalogEntry
                     {
-                        Id = "c350E",
+                        Id = "ProductCatalogEntry/c350E",
                         Category = "Hybrid"
                     });
 
@@ -162,7 +169,7 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().BeNull();
                 }
             }
@@ -184,7 +191,7 @@ namespace LiquidProjections.RavenDB.Specs
                     {
                         await session.StoreAsync(new ProductCatalogEntry
                         {
-                            Id = "c350E",
+                            Id = "ProductCatalogEntry/c350E",
                             Category = "Hybrids"
                         });
 
@@ -221,7 +228,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().BeNull();
                 }
             }
@@ -260,21 +267,21 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().BeNull();
                 }
             }
         }
 
-        public class When_an_event_requires_an_update_of_a_cached__projection : Given_a_raven_projector_with_an_in_memory_event_source
+        public class When_an_event_requires_an_update_of_a_cached_projection : Given_a_raven_projector_with_an_in_memory_event_source
         {
-            public When_an_event_requires_an_update_of_a_cached__projection()
+            public When_an_event_requires_an_update_of_a_cached_projection()
             {
                 Given(() =>
                 {
                     Cache.Add(new ProductCatalogEntry
                     {
-                        Id = "c350E",
+                        Id = "ProductCatalogEntry/c350E",
                         Category = "Hybrid"
                     });
 
@@ -305,7 +312,7 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 using (var session = The<IDocumentStore>().OpenAsyncSession())
                 {
-                    var entry = await session.LoadAsync<ProductCatalogEntry>("c350E");
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
                     entry.Should().NotBeNull();
 
                     entry.Category.Should().Be("Hybrid");
@@ -321,7 +328,7 @@ namespace LiquidProjections.RavenDB.Specs
                 {
                     Cache.Add(new ProductCatalogEntry
                     {
-                        Id = "c350E",
+                        Id = "ProductCatalogEntry/c350E",
                         Category = "Hybrid"
                     });
                 });

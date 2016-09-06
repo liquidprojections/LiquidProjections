@@ -207,7 +207,7 @@ namespace FluidCaching
             return index?.GetItem(key, item);
         }
 
-        /// <summary>AddAsNode a new index to the cache</summary>
+            /// <summary>AddAsNode a new index to the cache</summary>
         /// <typeparam name="TKey">the type of the key value</typeparam>
         /// <param name="indexName">the name to be associated with this list</param>
         /// <param name="getKey">delegate to get key from object</param>
@@ -225,10 +225,7 @@ namespace FluidCaching
         /// </summary>
         public void Add(T item)
         {
-            if (AddAsNode(item) == null)
-            {
-                throw new InvalidOperationException();
-            }
+            AddAsNode(item);
         }
 
         /// <summary>
@@ -247,7 +244,7 @@ namespace FluidCaching
             bool isDuplicate = (node != null) && (node.Value == item);
             if (!isDuplicate)
             {
-                var newNode = lifeSpan.Add(item);
+                var newNode = new Node<T>(lifeSpan, item);
 
                 foreach (KeyValuePair<string, IIndexManagement<T>> keyValue in indexList)
                 {
@@ -265,7 +262,7 @@ namespace FluidCaching
                 }
                 else
                 {
-                    node = null;
+                    node = FindExistingNode(item);
                 }
             }
 
@@ -397,7 +394,7 @@ namespace FluidCaching
         private Dictionary<TKey, WeakReference<INode<T>>> index;
         private readonly GetKey<T, TKey> _getKey;
         private readonly ItemCreator<TKey, T> loadItem;
-
+        
 
         /// <summary>constructor</summary>
         /// <param name="owner">parent of index</param>
@@ -589,7 +586,7 @@ namespace FluidCaching
         public LifespanManager(FluidCache<T> owner, int capacity, TimeSpan minAge, TimeSpan maxAge, GetNow getNow)
         {
             this.owner = owner;
-            double maxMS = Math.Min(maxAge.TotalMilliseconds, (double)12 * 60 * 60 * 1000); // max = 12 hours
+            double maxMS = Math.Min(maxAge.TotalMilliseconds, (double) 12 * 60 * 60 * 1000); // max = 12 hours
             this.minAge = minAge;
             this.getNow = getNow;
             this.maxAge = TimeSpan.FromMilliseconds(maxMS);
@@ -610,11 +607,6 @@ namespace FluidCaching
         public AgeBag<T> CurrentBag { get; private set; }
 
         public IsValid ValidateCache { get; set; }
-
-        public INode<T> Add(T value)
-        {
-            return new Node<T>(this, value);
-        }
 
         /// <summary>checks to see if cache is still valid and if LifespanMgr needs to do maintenance</summary>
         public void CheckValidity()
