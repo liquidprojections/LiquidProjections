@@ -43,9 +43,16 @@ namespace LiquidProjections
         public Func<TContext, Task> GetHandler(object @event)
         {
             Type key = @event.GetType();
-            var handler = mappings.ContainsKey(key) ? mappings[key].FirstOrDefault() : null;
+            GetHandlerFor[] handlerWrappers = mappings.ContainsKey(key) ? mappings[key].ToArray() : new GetHandlerFor[0];
 
-            return handler?.Invoke(@event);
+            return async ctx =>
+            {
+                foreach (GetHandlerFor wrapper in handlerWrappers)
+                {
+                    Func<TContext, Task> handler =  wrapper(@event);
+                    await handler(ctx);
+                }
+            };
         }
 
         private void Add<TEvent>(Func<TEvent, TContext, Task> action)
@@ -55,7 +62,7 @@ namespace LiquidProjections
                 mappings[typeof(TEvent)] = new List<GetHandlerFor>();
             }
 
-            mappings[typeof(TEvent)].Add(@event => new Handler<TEvent>(action).GetHandler(@event));
+            mappings[typeof(TEvent)].Add(@event => new HandlerWrapper<TEvent>(action).GetHandler(@event));
         }
 
         public class Action<TEvent>
@@ -110,11 +117,11 @@ namespace LiquidProjections
 
         private delegate Func<TContext, Task> GetHandlerFor(object @event);
 
-        private class Handler<TEvent>
+        private class HandlerWrapper<TEvent>
         {
             private readonly Func<TEvent, TContext, Task> projector;
 
-            public Handler(Func<TEvent, TContext, Task> projector)
+            public HandlerWrapper(Func<TEvent, TContext, Task> projector)
             {
                 this.projector = projector;
             }
