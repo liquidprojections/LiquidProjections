@@ -15,6 +15,7 @@ namespace LiquidProjections.RavenDB.Specs
             protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
             protected RavenProjector<ProductCatalogEntry> Projector;
             protected LruProjectionCache<ProductCatalogEntry> Cache;
+            protected EventMap<ProductCatalogEntry, RavenProjectionContext> Events;
 
             public Given_a_raven_projector_with_an_in_memory_event_source()
             {
@@ -27,7 +28,9 @@ namespace LiquidProjections.RavenDB.Specs
 
                     Cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
 
-                    Projector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, 10, Cache);
+                    Events = new EventMap<ProductCatalogEntry, RavenProjectionContext>();
+
+                    Projector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, Events, 10, Cache);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
                     dispatcher.Subscribe(0, async transactions =>
@@ -47,7 +50,7 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 Given(() =>
                 {
-                    Projector.Map<ProductAddedToCatalogEvent>()
+                    Events.Map<ProductAddedToCatalogEvent>()
                         .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
                 });
 
@@ -107,7 +110,7 @@ namespace LiquidProjections.RavenDB.Specs
                         Category = "Hybrid"
                     });
 
-                    Projector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                    Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
                 this.WhenAsync(async () =>
@@ -150,7 +153,7 @@ namespace LiquidProjections.RavenDB.Specs
                         Category = "Hybrid"
                     });
 
-                    Projector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                    Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
                 this.WhenAsync(async () =>
@@ -198,7 +201,7 @@ namespace LiquidProjections.RavenDB.Specs
                         await session.SaveChangesAsync();
                     }
 
-                    Projector.Map<CategoryDiscontinuedEvent>().As(async (e, ctx) =>
+                    Events.Map<CategoryDiscontinuedEvent>().As(async (e, ctx) =>
                     {
                         var entries = await ctx.Session.Query<ProductCatalogEntry>()
                             .Customize(x => x.WaitForNonStaleResultsAsOfLastWrite())
@@ -240,10 +243,10 @@ namespace LiquidProjections.RavenDB.Specs
             {
                 Given(() =>
                 {
-                    Projector.Map<ProductAddedToCatalogEvent>()
+                    Events.Map<ProductAddedToCatalogEvent>()
                         .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
 
-                    Projector.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                    Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
                 this.WhenAsync(async () =>
@@ -285,7 +288,7 @@ namespace LiquidProjections.RavenDB.Specs
                         Category = "Hybrid"
                     });
 
-                    Projector.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+                    Events.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
                 });
 
                 this.WhenAsync(async () =>

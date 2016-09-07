@@ -53,10 +53,11 @@
     <Compile Include="..\..\SharedAssemblyInfo.cs">
       <Link>SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="EventMap.cs" />
     <Compile Include="Dispatcher.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="EventEnvelope.cs" />
-    <Compile Include="EventMap.cs" />
+    <Compile Include="IEventMap.cs" />
     <Compile Include="IEventStore.cs" />
     <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />

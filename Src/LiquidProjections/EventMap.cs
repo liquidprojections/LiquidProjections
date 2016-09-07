@@ -1,24 +1,37 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
     /// <summary>
-    /// Represents a simple map between events and actions which can be used by projectors.
+    /// Allows mapping events to updates, deletes or custom actions on (existing) projections in a fluent fashion. 
     /// </summary>
-    /// <typeparam name="TContext"></typeparam>
-    public class EventMap<TContext> where TContext : ProjectionContext
+    public class EventMap<TProjection, TContext> : IEventMap<TProjection, TContext>
     {
-        private readonly IDictionary<Type, IHandler> mappings = new Dictionary<Type, IHandler>();
+        private readonly IDictionary<Type, GetHandlerFor> mappings = new Dictionary<Type, GetHandlerFor>();
 
+        private UpdateHandler<TContext, TProjection> updateHandler = null;
+        private DeleteHandler<TContext> deleteHandler = null;
+        private CustomHandler<TContext> customHandler = null;
 
-        /// <summary>
-        /// Maps <typeparamref name="TEvent"/> to an action.
-        /// </summary>
-        public EventAction<TEvent> Map<TEvent>()
+        public Action<TEvent> Map<TEvent>()
         {
-            return new EventAction<TEvent>(this);
+            return new Action<TEvent>(this);
+        }
+
+        public void ForwardUpdatesTo(UpdateHandler<TContext, TProjection> handler)
+        {
+            updateHandler = handler;
+        }
+
+        public void ForwardDeletesTo(DeleteHandler<TContext> handler)
+        {
+            deleteHandler = handler;
+        }
+        public void ForwardCustomActionsTo(CustomHandler<TContext> handler)
+        {
+            customHandler = handler;
         }
 
         /// <summary>
@@ -28,45 +41,52 @@ namespace LiquidProjections
         public Func<TContext, Task> GetHandler(object @event)
         {
             Type key = @event.GetType();
-            return mappings.ContainsKey(key) ? mappings[key].GetHandler(@event) : null;
+            return mappings.ContainsKey(key) ? mappings[key](@event) : null;
         }
 
-        private void Add(Type type, IHandler handler)
+        private void Add<TEvent>(Func<TEvent, TContext, Task> action)
         {
-            mappings.Add(type, handler);
+            mappings.Add(typeof(TEvent), @event => new Handler<TEvent>(action).GetHandler(@event));
         }
 
-        public class EventAction<TEvent>
+        public class Action<TEvent>
         {
-            private readonly EventMap<TContext> parent;
+            private readonly EventMap<TProjection, TContext> parent;
 
-            public EventAction(EventMap<TContext> parent)
+            internal Action(EventMap<TProjection, TContext> parent)
             {
                 this.parent = parent;
             }
 
-            public void As(Action<TEvent, TContext> projector)
+            public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, TContext> projector)
             {
-                As((e, ctx) =>
+                AsUpdateOf(selector, (p, e, ctx) =>
                 {
-                    projector(e, ctx);
-
+                    projector(p, e, ctx);
                     return Task.FromResult(0);
                 });
             }
 
-            public void As(Func<TEvent, TContext, Task> projector)
+            public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, TContext, Task> projector)
             {
-                parent.Add(typeof(TEvent), new Handler<TEvent>(projector));
+                parent.Add<TEvent>((@event, ctx) =>
+                        parent.updateHandler(selector(@event), ctx, (projection, innerCtx) => projector(projection, @event, innerCtx)));
+            }
+
+            public void AsDeleteOf(Func<TEvent, string> selector)
+            {
+                parent.Add<TEvent>((@event, ctx) => parent.deleteHandler(selector(@event), ctx));
+            }
+
+            public void As(Func<TEvent, TContext, Task> action)
+            {
+                parent.Add<TEvent>((@event, ctx) => parent.customHandler(ctx, innerCtx => action(@event, innerCtx)));
             }
         }
-        
-        private interface IHandler
-        {
-            Func<TContext, Task> GetHandler(object @event);
-        }
 
-        private class Handler<TEvent> : IHandler
+        private delegate Func<TContext, Task> GetHandlerFor(object @event);
+
+        private class Handler<TEvent>
         {
             private readonly Func<TEvent, TContext, Task> projector;
 
@@ -77,7 +97,7 @@ namespace LiquidProjections
 
             public Func<TContext, Task> GetHandler(object @event)
             {
-                return ctx => projector((TEvent)@event, ctx);
+                return ctx => projector((TEvent) @event, ctx);
             }
         }
     }

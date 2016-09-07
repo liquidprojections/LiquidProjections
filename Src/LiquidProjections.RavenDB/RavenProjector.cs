@@ -10,15 +10,58 @@ namespace LiquidProjections.RavenDB
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly int batchSize;
         private readonly IProjectionCache<TProjection> cache;
-        private readonly EventMap<RavenProjectionContext> map = new EventMap<RavenProjectionContext>();
+        private IEventMap<TProjection, RavenProjectionContext> map;
 
-        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, int batchSize = 1, IProjectionCache<TProjection> cache = null)
+        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IEventMap<TProjection, RavenProjectionContext> map, int batchSize = 1, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
+            this.map = map;
             this.batchSize = batchSize;
             this.cache = cache ?? new PassthroughCache<TProjection>();
+
+            InitializeMap();
         }
-        
+
+        private void InitializeMap()
+        {
+            map.ForwardUpdatesTo(async (key, context, projector) =>
+            {
+                string id = $"{typeof(TProjection).Name}/{key}";
+
+                TProjection projection = await cache.Get(id, async () =>
+                {
+                    var p = await context.Session.LoadAsync<TProjection>(id);
+                    return p ?? new TProjection
+                    {
+                        Id = id
+                    };
+                });
+
+                await projector(projection, context);
+
+                await context.Session.StoreAsync(projection);
+            });
+
+            map.ForwardDeletesTo(async (key, context) =>
+            {
+                string id = $"{typeof(TProjection).Name}/{key}";
+
+                if (context.Session.Advanced.IsLoaded(id))
+                {
+                    var projection = await context.Session.LoadAsync<TProjection>(id);
+                    context.Session.Delete(projection);
+                }
+                else
+                {
+                    await context.Session.Advanced.DocumentStore.AsyncDatabaseCommands.DeleteAsync(id, null);
+                }
+
+                cache.Remove(id);
+            });
+
+            map.ForwardCustomActionsTo((context, projector) => projector(context));
+        }
+
         /// <summary>
         /// Instructs the projector to project a collection of ordered transactions in batches as defined in the constructor.
         /// </summary>
@@ -28,51 +71,51 @@ namespace LiquidProjections.RavenDB
         {
             foreach (IList<Transaction> batch in transactions.InBatchesOf(batchSize))
             {
-                IAsyncDocumentSession session = null;
-
-                foreach (Transaction transaction in batch)
+                using (IAsyncDocumentSession session = sessionFactory())
                 {
-                    foreach (EventEnvelope @event in transaction.Events)
+                    foreach (Transaction transaction in batch)
                     {
-                        Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
-                        if (handler != null)
-                        {
-                            if (session == null)
-                            {
-                                session = sessionFactory();
-                            }
+                        await ProjectTransaction(transaction, session);
 
-                            await handler(new RavenProjectionContext
-                            {
-                                Session = session,
-                                StreamId = transaction.StreamId,
-                                TimeStampUtc = transaction.TimeStampUtc,
-                                Checkpoint = transaction.Checkpoint
-                            });
-                        }
+                        await StoreLastCheckpoint(session, transaction);
                     }
 
-                    if (session != null)
-                    {
-                        string key = "RavenCheckpoints/" + typeof(TProjection).Name;
-
-                        var state = await session.LoadAsync<ProjectorState>(key) ?? new ProjectorState
-                        {
-                            Id = key
-                        };
-
-                        state.Checkpoint = transaction.Checkpoint;
-                        state.LastUpdateUtc = DateTime.UtcNow;
-                        
-                        await session.StoreAsync(state);
-                    }
-                }
-
-                if (session != null)
-                {
                     await session.SaveChangesAsync();
                 }
             }
+        }
+
+        private async Task ProjectTransaction(Transaction transaction, IAsyncDocumentSession session)
+        {
+            foreach (EventEnvelope @event in transaction.Events)
+            {
+                Func<RavenProjectionContext, Task> handler = map.GetHandler(@event.Body);
+                if (handler != null)
+                {
+                    await handler(new RavenProjectionContext
+                    {
+                        Session = session,
+                        StreamId = transaction.StreamId,
+                        TimeStampUtc = transaction.TimeStampUtc,
+                        Checkpoint = transaction.Checkpoint
+                    });
+                }
+            }
+        }
+
+        private static async Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
+        {
+            string key = "RavenCheckpoints/" + typeof(TProjection).Name;
+
+            var state = await session.LoadAsync<ProjectorState>(key) ?? new ProjectorState
+            {
+                Id = key
+            };
+
+            state.Checkpoint = transaction.Checkpoint;
+            state.LastUpdateUtc = DateTime.UtcNow;
+
+            await session.StoreAsync(state);
         }
 
         public async Task<long?> GetLastCheckpoint()
@@ -81,82 +124,6 @@ namespace LiquidProjections.RavenDB
             {
                 var state = await session.LoadAsync<ProjectorState>("RavenCheckpoints/" + typeof(TProjection).Name);
                 return state?.Checkpoint;
-            }
-        }
-
-        public EventAction<TEvent> Map<TEvent>()
-        {
-            return new EventAction<TEvent>(this);
-        }
-
-        private void Add<TEvent>(Func<TEvent, RavenProjectionContext, Task> action)
-        {
-            map.Map<TEvent>().As(action);
-        }
-
-        public class EventAction<TEvent>
-        {
-            private readonly RavenProjector<TProjection> parent;
-
-            internal EventAction(RavenProjector<TProjection> parent)
-            {
-                this.parent = parent;
-            }
-
-            public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, RavenProjectionContext> projector)
-            {
-                AsUpdateOf(selector, (p, e, ctx) =>
-                {
-                    projector(p, e, ctx);
-                    return Task.FromResult(0);
-                });
-            }
-
-            public void AsUpdateOf(Func<TEvent, string> selector,
-                Func<TProjection, TEvent, RavenProjectionContext, Task> projector)
-            {
-                parent.Add<TEvent>(async (@event, ctx) =>
-                {
-                    string key = typeof(TProjection).Name + "/" + selector(@event);
-
-                    TProjection projection = await parent.cache.Get(key, async () =>
-                    {
-                        var p = await ctx.Session.LoadAsync<TProjection>(key);
-                        return p ?? new TProjection
-                        {
-                            Id = key
-                        };
-                    });
-
-                    await projector(projection, @event, ctx);
-
-                    await ctx.Session.StoreAsync(projection);
-                });
-            }
-
-            public void AsDeleteOf(Func<TEvent, string> selector)
-            {
-                parent.Add<TEvent>(async (@event, ctx) =>
-                {
-                    string key = typeof(TProjection).Name + "/" + selector(@event);
-
-                    if (ctx.Session.Advanced.IsLoaded(key))
-                    {
-                        var projection = await ctx.Session.LoadAsync<TProjection>(key);
-                        ctx.Session.Delete(projection);
-                    }
-                    else
-                    {
-                        await ctx.Session.Advanced.DocumentStore.AsyncDatabaseCommands.DeleteAsync(key, null);
-                    }
-
-                    parent.cache.Remove(key);
-                });
-            }
-
-            public void As(Func<TEvent, RavenProjectionContext, Task> action)
-            {
-                parent.Add(action);
             }
         }
     }
