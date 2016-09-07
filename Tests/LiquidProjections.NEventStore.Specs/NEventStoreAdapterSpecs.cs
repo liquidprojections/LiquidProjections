@@ -127,7 +127,7 @@ namespace LiquidProjections.NEventStore.Specs
                     Subject.Subscribe(1000, transactions => Task.FromResult(0));
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await eventStoreQueriedSource.Task;
                 });
