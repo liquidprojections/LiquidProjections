@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
@@ -29,6 +30,7 @@ namespace LiquidProjections
         {
             deleteHandler = handler;
         }
+
         public void ForwardCustomActionsTo(CustomHandler<TContext> handler)
         {
             customHandler = handler;
@@ -52,10 +54,17 @@ namespace LiquidProjections
         public class Action<TEvent>
         {
             private readonly EventMap<TProjection, TContext> parent;
+            private readonly List<Func<TEvent, bool>> predicates = new List<Func<TEvent, bool>>();
 
             internal Action(EventMap<TProjection, TContext> parent)
             {
                 this.parent = parent;
+            }
+
+            public Action<TEvent> Where(Func<TEvent, bool> predicate)
+            {
+                predicates.Add(predicate);
+                return this;
             }
 
             public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, TContext> projector)
@@ -69,18 +78,26 @@ namespace LiquidProjections
 
             public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, TContext, Task> projector)
             {
-                parent.Add<TEvent>((@event, ctx) =>
-                        parent.updateHandler(selector(@event), ctx, (projection, innerCtx) => projector(projection, @event, innerCtx)));
+                Add((@event, ctx) => parent.updateHandler(selector(@event), ctx,
+                        (projection, innerCtx) => projector(projection, @event, innerCtx)));
             }
 
             public void AsDeleteOf(Func<TEvent, string> selector)
             {
-                parent.Add<TEvent>((@event, ctx) => parent.deleteHandler(selector(@event), ctx));
+                Add((@event, ctx) => parent.deleteHandler(selector(@event), ctx));
             }
 
             public void As(Func<TEvent, TContext, Task> action)
             {
-                parent.Add<TEvent>((@event, ctx) => parent.customHandler(ctx, innerCtx => action(@event, innerCtx)));
+                Add((@event, ctx) => parent.customHandler(ctx, innerCtx => action(@event, innerCtx)));
+            }
+
+            private void Add(Func<TEvent, TContext, Task> action)
+            {
+                parent.Add<TEvent>((@event, ctx) =>
+                {
+                   return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
+                });
             }
         }
 

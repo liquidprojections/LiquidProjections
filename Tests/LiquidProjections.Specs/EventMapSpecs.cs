@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
@@ -60,6 +57,7 @@ namespace LiquidProjections.Specs
                 });
             }
         }
+
         public class When_an_event_is_mapped_as_a_delete : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
         {
             private ProductCatalogEntry projection;
@@ -99,7 +97,7 @@ namespace LiquidProjections.Specs
                 projection.ShouldBeEquivalentTo(new
                 {
                     Id = "c350E",
-                    Category = (string)null,
+                    Category = (string) null,
                     Deleted = true
                 });
             }
@@ -138,6 +136,101 @@ namespace LiquidProjections.Specs
             public void It_should_properly_pass_the_mapping_to_the_custom_handler()
             {
                 involvedKey.Should().Be("c350E");
+            }
+        }
+
+        public class When_a_condition_is_not_met : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        {
+            private ProductCatalogEntry projection;
+
+            public When_a_condition_is_not_met()
+            {
+                Given(() =>
+                {
+                    Subject.ForwardUpdatesTo(async (key, context, projector) =>
+                    {
+                        projection = new ProductCatalogEntry
+                        {
+                            Id = key,
+                        };
+
+                        await projector(projection, context);
+                    });
+
+                    Subject.Map<ProductAddedToCatalogEvent>().Where(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    {
+                        p.Category = e.Category;
+
+                        return Task.FromResult(0);
+                    });
+                });
+
+                When(async () =>
+                {
+                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_invoke_any_handler()
+            {
+                projection.Should().BeNull();
+            }
+        }
+
+        public class When_a_condition_is_met : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        {
+            private ProductCatalogEntry projection;
+
+            public When_a_condition_is_met()
+            {
+                Given(() =>
+                {
+                    Subject.ForwardUpdatesTo(async (key, context, projector) =>
+                    {
+                        projection = new ProductCatalogEntry
+                        {
+                            Id = key,
+                        };
+
+                        await projector(projection, context);
+                    });
+
+                    Subject.Map<ProductAddedToCatalogEvent>().Where(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    {
+                        p.Category = e.Category;
+
+                        return Task.FromResult(0);
+                    });
+                });
+
+                When(async () =>
+                {
+                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_invoke_the_right_handler()
+            {
+                projection.ShouldBeEquivalentTo(new
+                {
+                    Id = "c350E",
+                    Category = "Hybrids",
+                    Deleted = false
+                });
             }
         }
 
