@@ -54,7 +54,7 @@ namespace LiquidProjections.RavenDB.Specs
                         .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
@@ -92,7 +92,7 @@ namespace LiquidProjections.RavenDB.Specs
         {
             public When_an_unloaded_projection_must_be_deleted()
             {
-                this.GivenAsync(async () =>
+                Given(async () =>
                 {
                     using (var session = The<IDocumentStore>().OpenAsyncSession())
                     {
@@ -113,7 +113,7 @@ namespace LiquidProjections.RavenDB.Specs
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
                     {
@@ -156,7 +156,7 @@ namespace LiquidProjections.RavenDB.Specs
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
                     {
@@ -188,7 +188,7 @@ namespace LiquidProjections.RavenDB.Specs
         {
             public When_an_event_requires_as_a_custom_action()
             {
-                this.GivenAsync(async () =>
+                Given(async () =>
                 {
                     using (var session = The<IDocumentStore>().OpenAsyncSession())
                     {
@@ -215,7 +215,7 @@ namespace LiquidProjections.RavenDB.Specs
                     });
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new CategoryDiscontinuedEvent
                     {
@@ -249,7 +249,7 @@ namespace LiquidProjections.RavenDB.Specs
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(
                         new ProductAddedToCatalogEvent
@@ -291,7 +291,7 @@ namespace LiquidProjections.RavenDB.Specs
                     Events.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
@@ -336,7 +336,7 @@ namespace LiquidProjections.RavenDB.Specs
                     });
                 });
 
-                this.WhenAsync(async () =>
+                When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
                     {
