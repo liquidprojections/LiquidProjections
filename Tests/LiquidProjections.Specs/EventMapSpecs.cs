@@ -233,6 +233,33 @@ namespace LiquidProjections.Specs
                 });
             }
         }
+        public class When_multiple_conditions_are_registered : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        {
+            private Action action;
+
+            public When_multiple_conditions_are_registered()
+            {
+                When(() =>
+                {
+                    action = () =>
+                    {
+                        Subject.Map<ProductAddedToCatalogEvent>()
+                            .Where(e => e.Category == "Hybrids")
+                            .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+
+                        Subject.Map<ProductAddedToCatalogEvent>()
+                            .Where(e => e.Category == "Electrics")
+                            .AsDeleteOf(e => e.ProductKey);
+                    };
+                });
+            }
+
+            [Fact]
+            public void It_should_allow_all_of_them()
+            {
+                action.ShouldNotThrow();
+            }
+        }
 
         public class ProductCatalogEntry
         {
