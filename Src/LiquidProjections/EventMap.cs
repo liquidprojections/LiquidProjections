@@ -68,7 +68,7 @@ namespace LiquidProjections
                 this.parent = parent;
             }
 
-            public Action<TEvent> Where(Func<TEvent, bool> predicate)
+            public Action<TEvent> When(Func<TEvent, bool> predicate)
             {
                 predicates.Add(predicate);
                 return this;

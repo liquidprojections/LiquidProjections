@@ -157,7 +157,7 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().Where(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
@@ -202,7 +202,7 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().Where(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
@@ -244,11 +244,11 @@ namespace LiquidProjections.Specs
                     action = () =>
                     {
                         Subject.Map<ProductAddedToCatalogEvent>()
-                            .Where(e => e.Category == "Hybrids")
+                            .When(e => e.Category == "Hybrids")
                             .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
 
                         Subject.Map<ProductAddedToCatalogEvent>()
-                            .Where(e => e.Category == "Electrics")
+                            .When(e => e.Category == "Electrics")
                             .AsDeleteOf(e => e.ProductKey);
                     };
                 });
