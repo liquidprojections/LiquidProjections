@@ -10,7 +10,7 @@ namespace LiquidProjections
     /// </summary>
     public class EventMap<TProjection, TContext> : IEventMap<TProjection, TContext>
     {
-        private readonly IDictionary<Type, GetHandlerFor> mappings = new Dictionary<Type, GetHandlerFor>();
+        private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
 
         private UpdateHandler<TContext, TProjection> updateHandler = null;
         private DeleteHandler<TContext> deleteHandler = null;
@@ -43,12 +43,26 @@ namespace LiquidProjections
         public Func<TContext, Task> GetHandler(object @event)
         {
             Type key = @event.GetType();
-            return mappings.ContainsKey(key) ? mappings[key](@event) : null;
+            GetHandlerFor[] handlerWrappers = mappings.ContainsKey(key) ? mappings[key].ToArray() : new GetHandlerFor[0];
+
+            return async ctx =>
+            {
+                foreach (GetHandlerFor wrapper in handlerWrappers)
+                {
+                    Func<TContext, Task> handler =  wrapper(@event);
+                    await handler(ctx);
+                }
+            };
         }
 
         private void Add<TEvent>(Func<TEvent, TContext, Task> action)
         {
-            mappings.Add(typeof(TEvent), @event => new Handler<TEvent>(action).GetHandler(@event));
+            if (!mappings.ContainsKey(typeof(TEvent)))
+            {
+                mappings[typeof(TEvent)] = new List<GetHandlerFor>();
+            }
+
+            mappings[typeof(TEvent)].Add(@event => new HandlerWrapper<TEvent>(action).GetHandler(@event));
         }
 
         public class Action<TEvent>
@@ -61,7 +75,7 @@ namespace LiquidProjections
                 this.parent = parent;
             }
 
-            public Action<TEvent> Where(Func<TEvent, bool> predicate)
+            public Action<TEvent> When(Func<TEvent, bool> predicate)
             {
                 predicates.Add(predicate);
                 return this;
@@ -79,7 +93,7 @@ namespace LiquidProjections
             public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, TContext, Task> projector)
             {
                 Add((@event, ctx) => parent.updateHandler(selector(@event), ctx,
-                        (projection, innerCtx) => projector(projection, @event, innerCtx)));
+                    (projection, innerCtx) => projector(projection, @event, innerCtx)));
             }
 
             public void AsDeleteOf(Func<TEvent, string> selector)
@@ -96,18 +110,18 @@ namespace LiquidProjections
             {
                 parent.Add<TEvent>((@event, ctx) =>
                 {
-                   return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
+                    return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
                 });
             }
         }
 
         private delegate Func<TContext, Task> GetHandlerFor(object @event);
 
-        private class Handler<TEvent>
+        private class HandlerWrapper<TEvent>
         {
             private readonly Func<TEvent, TContext, Task> projector;
 
-            public Handler(Func<TEvent, TContext, Task> projector)
+            public HandlerWrapper(Func<TEvent, TContext, Task> projector)
             {
                 this.projector = projector;
             }
