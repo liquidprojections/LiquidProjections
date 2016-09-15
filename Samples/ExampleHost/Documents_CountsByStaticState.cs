@@ -2,7 +2,7 @@
 using System.Linq;
 using Raven.Client.Indexes;
 
-namespace ExampleHost
+namespace LiquidProjections.ExampleHost
 {
     public class Documents_CountsByStaticState :
         AbstractIndexCreationTask<DocumentCountProjection, Documents_CountsByStaticState.Result>
@@ -22,25 +22,26 @@ namespace ExampleHost
 
         public Documents_CountsByStaticState()
         {
-            Map = workItems =>
-                from workItem in workItems
+            Map = documents =>
+                from document in documents
                 let dynamicStates = new[] { "Active" }
-                where !dynamicStates.Contains(workItem.State)
+                where !dynamicStates.Contains(document.State)
                 select new Result
                 {
-                    Country = workItem.Country,
-                    Kind = workItem.Kind,
-                    State = workItem.State,
+                    Country = document.Country,
+                    AuthorizationArea = document.RestrictedArea,
+                    Kind = document.Kind,
+                    State = document.State,
                     Count = 1
                 };
 
             Reduce = results =>
                 from r in results
-                group r by new { SiteCode = r.Country, r.AuthorizationArea, r.Kind, r.State }
+                group r by new { Country = r.Country, r.AuthorizationArea, r.Kind, r.State }
                 into grp
                 select new
                 {
-                    grp.Key.SiteCode,
+                    grp.Key.Country,
                     grp.Key.AuthorizationArea,
                     grp.Key.Kind,
                     grp.Key.State,

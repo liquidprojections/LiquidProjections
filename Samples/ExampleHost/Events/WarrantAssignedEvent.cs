@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ExampleHost.Events
+namespace LiquidProjections.ExampleHost.Events
 {
     public class WarrantAssignedEvent
     {

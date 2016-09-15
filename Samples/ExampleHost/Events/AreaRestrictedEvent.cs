@@ -1,8 +1,8 @@
-﻿namespace ExampleHost.Events
+﻿namespace LiquidProjections.ExampleHost.Events
 {
     internal class AreaRestrictedEvent
     {
         public string DocumentNumber { get; set; }
-        public object Area { get; set; }
+        public string Area { get; set; }
     }
 }

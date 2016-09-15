@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LiquidProjections.RavenDB;
 
-namespace ExampleHost
+namespace LiquidProjections.ExampleHost
 {
     public class DocumentCountProjection : IHaveIdentity
     {
@@ -31,7 +31,7 @@ namespace ExampleHost
         public virtual DateTime? EndDateTime { get; set; }
 
         public List<ValidityPeriod> Periods { get; set; }
-        public object RestrictedArea { get; set; }
+        public string RestrictedArea { get; set; }
 
         public ValidityPeriod GetOrAddPeriod(int sequence)
         {
@@ -57,6 +57,20 @@ namespace ExampleHost
 
     public class ValidityPeriod
     {
+        private DateTime? startDateTime;
+        private DateTime? endDateTime;
+
+        public ValidityPeriod(DateTime? startDateTime, DateTime? endDateTime)
+        {
+            this.startDateTime = startDateTime;
+            this.endDateTime = endDateTime;
+        }
+
+        public ValidityPeriod()
+        {
+            throw new NotImplementedException();
+        }
+
         public int Sequence { get; set; }
         public DateTime? From { get; set; }
         public DateTime? To { get; set; }
