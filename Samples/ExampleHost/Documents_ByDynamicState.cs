@@ -2,7 +2,7 @@
 using System.Linq;
 using Raven.Client.Indexes;
 
-namespace ExampleHost
+namespace LiquidProjections.ExampleHost
 {
     public class Documents_ByDynamicState :
         AbstractIndexCreationTask<DocumentCountProjection, Documents_ByDynamicState.Result>

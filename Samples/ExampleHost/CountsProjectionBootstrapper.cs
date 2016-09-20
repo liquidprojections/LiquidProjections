@@ -2,12 +2,11 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using ExampleHost.Events;
-using LiquidProjections;
+using LiquidProjections.ExampleHost.Events;
 using LiquidProjections.RavenDB;
 using Raven.Client;
 
-namespace ExampleHost
+namespace LiquidProjections.ExampleHost
 {
     public class CountsProjectionBootstrapper
     {
@@ -173,11 +172,5 @@ namespace ExampleHost
                 period = previousPeriod;
             }
         }
-    }
-
-    internal class LifetimeRestrictedEvent
-    {
-        public DateTime PeriodEnd { get; set; }
-        public string DocumentNumber { get; set; }
     }
 }
