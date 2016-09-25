@@ -51,7 +51,8 @@ namespace LiquidProjections.RavenDB.Specs
                 Given(() =>
                 {
                     Events.Map<ProductAddedToCatalogEvent>()
-                        .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) => p.Category = e.Category);
                 });
 
                 When(async () =>
@@ -244,7 +245,7 @@ namespace LiquidProjections.RavenDB.Specs
                 Given(() =>
                 {
                     Events.Map<ProductAddedToCatalogEvent>()
-                        .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+                        .AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) => p.Category = e.Category);
 
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
                 });
@@ -288,7 +289,7 @@ namespace LiquidProjections.RavenDB.Specs
                         Category = "Hybrid"
                     });
 
-                    Events.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+                    Events.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) => p.Category = e.Category);
                 });
 
                 When(async () =>

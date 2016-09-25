@@ -59,7 +59,7 @@ namespace LiquidProjections.ExampleHost
         {
             var map = new EventMap<DocumentCountProjection, RavenProjectionContext>();
 
-            map.Map<WarrantAssignedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<WarrantAssignedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Warrant";
                 p.Kind = e.Kind;
@@ -67,7 +67,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<CertificateIssuedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<CertificateIssuedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Certificate";
                 p.Kind = e.Kind;
@@ -75,7 +75,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<ConstitutionEstablishedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<ConstitutionEstablishedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Constitution";
                 p.Kind = e.Kind;
@@ -83,7 +83,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<LicenseGrantedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<LicenseGrantedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Audit";
                 p.Kind = e.Kind;
@@ -91,7 +91,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<ContractNegotiatedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<ContractNegotiatedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Task";
                 p.Kind = e.Kind;
@@ -99,7 +99,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<BondIssuedEvent>().AsUpdateOf(e => e.Number, (p, e, ctx) =>
+            map.Map<BondIssuedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "IsolationCertificate";
                 p.Kind = e.Kind;
@@ -109,47 +109,47 @@ namespace LiquidProjections.ExampleHost
 
             map
                 .Map<AreaRestrictedEvent>()
-                .AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) => p.RestrictedArea = e.Area);
+                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.RestrictedArea = e.Area);
 
             map
                 .Map<AreaRestrictionCancelledEvent>()
-                .AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) => p.RestrictedArea = null);
+                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.RestrictedArea = null);
 
             map.Map<StateTransitionedEvent>()
                 .When(e => e.State != "Closed")
-                .AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) => p.State = e.State);
+                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.State = e.State);
 
             map.Map<StateRevertedEvent>()
-                .AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) => { p.State = e.State; });
+                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => { p.State = e.State; });
 
             map.Map<DocumentArchivedEvent>().AsDeleteOf(e => e.DocumentNumber);
 
-            map.Map<CountryCorrectedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) => p.Country = e.Country);
+            map.Map<CountryCorrectedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.Country = e.Country);
 
-            map.Map<NextReviewScheduledEvent>().AsUpdateOf(e => e.DocumentNumber,
+            map.Map<NextReviewScheduledEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
                 (p, e, ctx) => p.NextReviewAt = e.NextReviewAt);
 
-            map.Map<LifetimeRestrictedEvent>().AsUpdateOf(e => e.DocumentNumber,
+            map.Map<LifetimeRestrictedEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
                 (p, e, ctx) => p.LifetimePeriodEnd = e.PeriodEnd);
 
-            map.Map<LifetimeRestrictionRemovedEvent>().AsUpdateOf(e => e.DocumentNumber,
+            map.Map<LifetimeRestrictionRemovedEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
                 (p, e, ctx) => p.LifetimePeriodEnd = null);
 
-            map.Map<ValidityPeriodPlannedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodPlannedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.From = e.From;
                 period.To = e.To;
             });
 
-            map.Map<ValidityPeriodResetEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodResetEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.From = null;
                 period.To = null;
             });
 
-            map.Map<ValidityPeriodApprovedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodApprovedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.Status = "Valid";
@@ -163,14 +163,14 @@ namespace LiquidProjections.ExampleHost
                 p.EndDateTime = contiguousPeriods.Any() ? contiguousPeriods.Last().To : DateTime.MaxValue;
             });
 
-            map.Map<ValidityPeriodClosedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodClosedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.Status = "Closed";
                 period.To = e.ClosedAt;
             });
 
-            map.Map<ValidityPeriodCanceledEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodCanceledEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.Status = "Canceled";

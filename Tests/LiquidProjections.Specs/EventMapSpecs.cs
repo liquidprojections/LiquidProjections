@@ -26,7 +26,7 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    Subject.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
@@ -157,7 +157,7 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
@@ -202,7 +202,7 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey, (p, e, ctx) =>
+                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
@@ -245,7 +245,7 @@ namespace LiquidProjections.Specs
                     {
                         Subject.Map<ProductAddedToCatalogEvent>()
                             .When(e => e.Category == "Hybrids")
-                            .AsUpdateOf(e => e.ProductKey, (p, e, ctx) => p.Category = e.Category);
+                            .AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) => p.Category = e.Category);
 
                         Subject.Map<ProductAddedToCatalogEvent>()
                             .When(e => e.Category == "Electrics")
