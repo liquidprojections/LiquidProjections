@@ -10,7 +10,7 @@ namespace LiquidProjections.RavenDB
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly int batchSize;
         private readonly IProjectionCache<TProjection> cache;
-        private IEventMap<TProjection, RavenProjectionContext> map;
+        private readonly IEventMap<TProjection, RavenProjectionContext> map;
 
         public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IEventMap<TProjection, RavenProjectionContext> map, int batchSize = 1, IProjectionCache<TProjection> cache = null)
         {
