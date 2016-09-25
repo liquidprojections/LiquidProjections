@@ -81,19 +81,12 @@ namespace LiquidProjections
                 return this;
             }
 
-            public void AsUpdateOf(Func<TEvent, string> selector, Action<TProjection, TEvent, TContext> projector)
+            public UpdateAction<TEvent> AsUpdateOf(Func<TEvent, string> selector)
             {
-                AsUpdateOf(selector, (p, e, ctx) =>
+                return new UpdateAction<TEvent>(projector =>
                 {
-                    projector(p, e, ctx);
-                    return Task.FromResult(0);
+                    Add((@event, ctx) => parent.updateHandler(selector(@event), ctx, (projection, innerCtx) => projector(projection, @event, innerCtx)));
                 });
-            }
-
-            public void AsUpdateOf(Func<TEvent, string> selector, Func<TProjection, TEvent, TContext, Task> projector)
-            {
-                Add((@event, ctx) => parent.updateHandler(selector(@event), ctx,
-                    (projection, innerCtx) => projector(projection, @event, innerCtx)));
             }
 
             public void AsDeleteOf(Func<TEvent, string> selector)
@@ -112,6 +105,30 @@ namespace LiquidProjections
                 {
                     return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
                 });
+            }
+        }
+
+        public class UpdateAction<TEvent>
+        {
+            private readonly System.Action<Func<TProjection, TEvent, TContext, Task>> action;
+
+            public UpdateAction(System.Action<Func<TProjection, TEvent, TContext, Task>> action)
+            {
+                this.action = action;
+            }
+
+            public void Using(Action<TProjection, TEvent, TContext> projector)
+            {
+                Using((p, e, ctx) =>
+                {
+                    projector(p, e, ctx);
+                    return Task.FromResult(0);
+                });
+            }
+
+            public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+            {
+                action(projector);
             }
         }
 
