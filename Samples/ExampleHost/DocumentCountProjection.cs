@@ -57,18 +57,14 @@ namespace LiquidProjections.ExampleHost
 
     public class ValidityPeriod
     {
-        private DateTime? startDateTime;
-        private DateTime? endDateTime;
-
         public ValidityPeriod(DateTime? startDateTime, DateTime? endDateTime)
         {
-            this.startDateTime = startDateTime;
-            this.endDateTime = endDateTime;
+            From = startDateTime;
+            To = endDateTime;
         }
 
         public ValidityPeriod()
         {
-            throw new NotImplementedException();
         }
 
         public int Sequence { get; set; }

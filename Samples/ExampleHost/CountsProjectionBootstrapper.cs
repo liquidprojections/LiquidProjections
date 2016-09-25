@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using LiquidProjections.ExampleHost.Events;
 using LiquidProjections.RavenDB;
@@ -12,26 +14,44 @@ namespace LiquidProjections.ExampleHost
     {
         private readonly Dispatcher dispatcher;
         private readonly Func<IAsyncDocumentSession> sessionFactory;
-        private RavenProjector<DocumentCountProjection> ravenProjector;
+        private RavenProjector<DocumentCountProjection> projector;
+        private readonly Stopwatch stopwatch = new Stopwatch();
+        private long eventCount = 0;
+        private long transactionCount = 0;
+        private readonly EventMap<DocumentCountProjection, RavenProjectionContext> map;
 
         public CountsProjectionBootstrapper(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
         {
             this.dispatcher = dispatcher;
             this.sessionFactory = sessionFactory;
-        }
+            map = BuildEventMap();
+        }   
 
         public async Task Start()
         {
-            var cache = new LruProjectionCache<DocumentCountProjection>(5000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
+            var lruCache = new LruProjectionCache<DocumentCountProjection>(10000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
                 () => DateTime.Now);
 
-            var map = BuildEventMap();
+            projector = new RavenProjector<DocumentCountProjection>(sessionFactory, map, batchSize: 10, cache: lruCache);
 
-            ravenProjector = new RavenProjector<DocumentCountProjection>(sessionFactory, map, 10, cache);
+            long lastCheckpoint = await projector.GetLastCheckpoint() ?? 0;
 
-            dispatcher.Subscribe(await ravenProjector.GetLastCheckpoint() ?? 0, async transactions =>
+            stopwatch.Start();
+
+            dispatcher.Subscribe(lastCheckpoint, async transactions =>
             {
-                    await ravenProjector.Handle(transactions);
+                await projector.Handle(transactions);
+
+                transactionCount += transactions.Count;
+                eventCount += transactions.Sum(t => t.Events.Count);
+
+                if (transactionCount % 100 == 0)
+                {
+                    int ratePerSecond = (int)(eventCount / (long)stopwatch.Elapsed.TotalSeconds);
+
+                    Console.WriteLine(
+                        $"Processed {eventCount} events (rate: {ratePerSecond}/second, hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
+                }
             });
         }
 
@@ -143,7 +163,7 @@ namespace LiquidProjections.ExampleHost
                 p.EndDateTime = contiguousPeriods.Any() ? contiguousPeriods.Last().To : DateTime.MaxValue;
             });
 
-            map.Map<ValidyPeriodClosedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
+            map.Map<ValidityPeriodClosedEvent>().AsUpdateOf(e => e.DocumentNumber, (p, e, ctx) =>
             {
                 var period = p.GetOrAddPeriod(e.Sequence);
                 period.Status = "Closed";
@@ -167,7 +187,7 @@ namespace LiquidProjections.ExampleHost
                 yield return period;
 
                 ValidityPeriod previousPeriod =
-                    allPeriods.SingleOrDefault(p => p.Status == "Valid" && p.To.Equals(period.From));
+                    allPeriods.SingleOrDefault(p => p.Status == "Valid" && p.To.Equals(period.From) && p.Sequence != period.Sequence);
 
                 period = previousPeriod;
             }

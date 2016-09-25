@@ -2,7 +2,7 @@
 
 namespace LiquidProjections.ExampleHost.Events
 {
-    internal class ValidyPeriodClosedEvent
+    internal class ValidityPeriodClosedEvent
     {
         public string DocumentNumber { get; set; }
         public int Sequence { get; set; }
