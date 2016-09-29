@@ -17,7 +17,18 @@ namespace LiquidProjections
         {
             // TODO: intercept and log errors
 
-            eventStore.Subscribe(checkpoint, handler);
+            eventStore.Subscribe(checkpoint, async transactions =>
+            {
+                try
+                {
+                    await handler(transactions);
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e);
+                    throw;
+                }
+            });
         }
     }
 }

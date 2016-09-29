@@ -29,10 +29,10 @@ namespace LiquidProjections.ExampleHost
 
         public async Task Start()
         {
-            var lruCache = new LruProjectionCache<DocumentCountProjection>(10000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
+            var lruCache = new LruProjectionCache<DocumentCountProjection>(20000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
                 () => DateTime.Now);
 
-            projector = new RavenProjector<DocumentCountProjection>(sessionFactory, map, batchSize: 10, cache: lruCache);
+            projector = new RavenProjector<DocumentCountProjection>(sessionFactory, map, batchSize: 20, cache: lruCache);
 
             long lastCheckpoint = await projector.GetLastCheckpoint() ?? 0;
 
@@ -45,12 +45,13 @@ namespace LiquidProjections.ExampleHost
                 transactionCount += transactions.Count;
                 eventCount += transactions.Sum(t => t.Events.Count);
 
-                if (transactionCount % 100 == 0)
+                long elapsedTotalSeconds = (long)stopwatch.Elapsed.TotalSeconds;
+                if ((transactionCount % 100 == 0) && (elapsedTotalSeconds > 0))
                 {
-                    int ratePerSecond = (int)(eventCount / (long)stopwatch.Elapsed.TotalSeconds);
+                    int ratePerSecond = (int)(eventCount / elapsedTotalSeconds);
 
                     Console.WriteLine(
-                        $"Processed {eventCount} events (rate: {ratePerSecond}/second, hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
+                        $"{DateTime.Now}: Processed {eventCount} events (rate: {ratePerSecond}/second, hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
                 }
             });
         }

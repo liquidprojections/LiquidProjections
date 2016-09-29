@@ -38,6 +38,7 @@ namespace LiquidProjections.ExampleHost
                 {
                     // Start loading the next page on a separate thread while we have the subscriber handle the previous transactions.
                     loader = LoadNextPageAsync();
+
                     await subscriber.Send(transactions);
 
                     transactions = await loader;
@@ -76,7 +77,10 @@ namespace LiquidProjections.ExampleHost
 
                     if ((transaction.Events.Count == AverageEventsPerTransaction) || (json == null))
                     {
-                        transactions.Add(transaction);
+                        if (transaction.Events.Count > 0)
+                        {
+                            transactions.Add(transaction);
+                        }
 
                         transaction = new Transaction
                         {
@@ -117,7 +121,15 @@ namespace LiquidProjections.ExampleHost
             {
                 if (!disposed)
                 {
-                    await handler(transactions.Where(t => t.Checkpoint >= fromCheckpoint).ToArray());
+                    Transaction[] readOnlyList = transactions.Where(t => t.Checkpoint >= fromCheckpoint).ToArray();
+                    if (readOnlyList.Length > 0)
+                    {
+                        await handler(readOnlyList);
+                    }
+                }
+                else
+                {
+                    throw new ObjectDisposedException("");
                 }
             }
 

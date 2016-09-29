@@ -33,11 +33,12 @@ namespace LiquidProjections.ExampleHost
             var dispatcher = new Dispatcher(eventStore);
 
             var bootstrapper = new CountsProjectionBootstrapper(dispatcher, store.OpenAsyncSession);
-            bootstrapper.Start().Wait();
 
             var startOptions = new StartOptions($"http://localhost:9000");
             using (WebApp.Start(startOptions, builder => builder.UseControllers(container)))
             {
+                bootstrapper.Start().Wait();
+
                 Console.WriteLine($"HTTP endpoint available at http://localhost:9000/api/Statistics/CountsPerState");
                 Console.WriteLine($"Management Studio available at http://localhost:9001");
 
