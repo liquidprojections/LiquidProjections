@@ -32,6 +32,8 @@ namespace LiquidProjections.ExampleHost
                     .Where(x => x.Kind == kind && x.Country == country)
                     .As<DocumentCountProjection>();
 
+                string countryName = (await session.LoadAsync<CountryLookup>(country.ToString())).Name;
+
                 var evaluator = new RealtimeStateEvaluator();
 
                 var iterator = await session.Advanced.StreamAsync(stream);
@@ -54,6 +56,7 @@ namespace LiquidProjections.ExampleHost
                         {
                             Kind = kind,
                             Country = country,
+                            CountryName = countryName,
                             State = actualState,
                         };
 

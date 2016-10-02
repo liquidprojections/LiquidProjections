@@ -11,6 +11,8 @@ namespace LiquidProjections.ExampleHost
         {
             public Guid Country { get; set; }
 
+            public string CountryName { get; set; }
+
             public string Kind { get; set; }
         }
 
@@ -23,6 +25,7 @@ namespace LiquidProjections.ExampleHost
                 select new Result
                 {
                     Country = document.Country,
+                    CountryName = LoadDocument<CountryLookup>(document.Country.ToString()).Name,
                     Kind = document.Kind
                 };
         }
