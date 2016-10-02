@@ -11,6 +11,8 @@ namespace LiquidProjections.ExampleHost
         {
             public Guid Country { get; set; }
 
+            public string CountryName { get; set; }
+
             public string AuthorizationArea { get; set; }
 
             public string Kind { get; set; }
@@ -29,6 +31,7 @@ namespace LiquidProjections.ExampleHost
                 select new Result
                 {
                     Country = document.Country,
+                    CountryName = LoadDocument<CountryLookup>(document.Country.ToString()).Name,
                     AuthorizationArea = document.RestrictedArea,
                     Kind = document.Kind,
                     State = document.State,
@@ -37,11 +40,12 @@ namespace LiquidProjections.ExampleHost
 
             Reduce = results =>
                 from r in results
-                group r by new { Country = r.Country, r.AuthorizationArea, r.Kind, r.State }
+                group r by new { Country = r.Country, r.CountryName, r.AuthorizationArea, r.Kind, r.State }
                 into grp
                 select new
                 {
                     grp.Key.Country,
+                    grp.Key.CountryName,
                     grp.Key.AuthorizationArea,
                     grp.Key.Kind,
                     grp.Key.State,

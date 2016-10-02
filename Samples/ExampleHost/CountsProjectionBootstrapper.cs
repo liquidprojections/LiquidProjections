@@ -60,6 +60,15 @@ namespace LiquidProjections.ExampleHost
         {
             var map = new EventMap<DocumentCountProjection, RavenProjectionContext>();
 
+            map.Map<CountryRegisteredEvent>().As(async (e, ctx) =>
+            {
+                await ctx.Session.StoreAsync(new CountryLookup
+                {
+                    Id = e.Code,
+                    Name = e.Name
+                });
+            });
+
             map.Map<WarrantAssignedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Warrant";

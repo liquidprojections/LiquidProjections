@@ -100,6 +100,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CountryLookup.cs" />
     <Compile Include="Events\AreaRestrictedEvent.cs" />
     <Compile Include="Events\AreaRestrictionCancelledEvent.cs" />
     <Compile Include="Events\BondIssuedEvent.cs" />
@@ -107,6 +108,7 @@
     <Compile Include="Events\ConstitutionEstablishedEvent.cs" />
     <Compile Include="Events\CertificateIssuedEvent.cs" />
     <Compile Include="Events\CountryCorrectedEvent.cs" />
+    <Compile Include="Events\CountryRegisteredEvent.cs" />
     <Compile Include="Events\DocumentArchivedEvent.cs" />
     <Compile Include="Events\LicenseGrantedEvent.cs" />
     <Compile Include="Events\LifetimeRestrictionRemovedEvent.cs" />
