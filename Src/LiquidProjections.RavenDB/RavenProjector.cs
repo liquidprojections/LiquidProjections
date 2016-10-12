@@ -19,14 +19,21 @@ namespace LiquidProjections.RavenDB
             this.batchSize = batchSize;
             this.cache = cache ?? new PassthroughCache<TProjection>();
 
+            CollectionName = typeof(TProjection).Name;
+
             InitializeMap();
         }
+
+        /// <summary>
+        /// The name of the collection under which the projections must be created (default: the name of the type). 
+        /// </summary>
+        public string CollectionName { get; set; }
 
         private void InitializeMap()
         {
             map.ForwardUpdatesTo(async (key, context, projector) =>
             {
-                string id = $"{typeof(TProjection).Name}/{key}";
+                string id = $"{CollectionName}/{key}";
 
                 TProjection projection = await cache.Get(id, async () =>
                 {
@@ -44,7 +51,7 @@ namespace LiquidProjections.RavenDB
 
             map.ForwardDeletesTo(async (key, context) =>
             {
-                string id = $"{typeof(TProjection).Name}/{key}";
+                string id = $"{CollectionName}/{key}";
 
                 if (context.Session.Advanced.IsLoaded(id))
                 {
@@ -103,9 +110,9 @@ namespace LiquidProjections.RavenDB
             }
         }
 
-        private static async Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
+        private async Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
         {
-            string key = "RavenCheckpoints/" + typeof(TProjection).Name;
+            string key = "RavenCheckpoints/" + CollectionName;
 
             var state = await session.LoadAsync<ProjectorState>(key) ?? new ProjectorState
             {
@@ -122,7 +129,7 @@ namespace LiquidProjections.RavenDB
         {
             using (var session = sessionFactory())
             {
-                var state = await session.LoadAsync<ProjectorState>("RavenCheckpoints/" + typeof(TProjection).Name);
+                var state = await session.LoadAsync<ProjectorState>("RavenCheckpoints/" + CollectionName);
                 return state?.Checkpoint;
             }
         }
