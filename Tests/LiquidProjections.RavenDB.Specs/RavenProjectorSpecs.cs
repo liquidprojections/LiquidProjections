@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
+using LiquidProjections.RavenDB.Specs.RavenProjectorSpecs;
 using Raven.Client;
 using Xunit;
 
@@ -356,7 +357,50 @@ namespace LiquidProjections.RavenDB.Specs
                 Cache.Hits.Should().Be(0);
             }
         }
+
+        public class When_a_custom_collection_name_is_set : Given_a_raven_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_a_custom_collection_name_is_set()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) => p.Category = e.Category);
+
+                    Projector.CollectionName = "CatalogEntries";
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid",
+                        Version = 0
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_create_the_projection_under_that_collection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("CatalogEntries/c350E");
+                    entry.Should().NotBeNull();
+                }
+            }
+        }
+
     }
+
+
 
     public class ProductCatalogEntry : IHaveIdentity
     {
