@@ -8,15 +8,24 @@ namespace LiquidProjections.Specs
 {
     namespace EventMapSpecs
     {
-        public class When_an_event_is_mapped_as_an_update : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        public class When_an_event_is_mapped_as_an_update : GivenWhenThen
         {
             private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
 
             public When_an_event_is_mapped_as_an_update()
             {
                 Given(() =>
                 {
-                    Subject.ForwardUpdatesTo(async (key, context, projector) =>
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    mapBuilder.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
+                    {
+                        p.Category = e.Category;
+
+                        return Task.FromResult(0);
+                    });
+
+                    mapBuilder.HandleUpdatesAs(async (key, context, projector) =>
                     {
                         projection = new ProductCatalogEntry
                         {
@@ -26,17 +35,12 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
-                    {
-                        p.Category = e.Category;
-
-                        return Task.FromResult(0);
-                    });
+                    map = mapBuilder.Build();
                 });
 
                 When(async () =>
                 {
-                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductAddedToCatalogEvent
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
                     {
                         Category = "Hybrids",
                         ProductKey = "c350E"
@@ -58,15 +62,19 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_an_event_is_mapped_as_a_delete : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        public class When_an_event_is_mapped_as_a_delete : GivenWhenThen
         {
             private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
 
             public When_an_event_is_mapped_as_a_delete()
             {
                 Given(() =>
                 {
-                    Subject.ForwardDeletesTo((key, context) =>
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    mapBuilder.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+
+                    mapBuilder.HandleDeletesAs((key, context) =>
                     {
                         projection = new ProductCatalogEntry
                         {
@@ -77,12 +85,12 @@ namespace LiquidProjections.Specs
                         return Task.FromResult(0);
                     });
 
-                    Subject.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+                    map = mapBuilder.Build();
                 });
 
                 When(async () =>
                 {
-                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductDiscontinuedEvent
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductDiscontinuedEvent
                     {
                         ProductKey = "c350E"
                     });
@@ -103,27 +111,32 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_an_event_is_mapped_as_a_custom_action : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+
+        public class When_an_event_is_mapped_as_a_custom_action : GivenWhenThen
         {
             private string involvedKey;
+            private IEventMap<ProjectionContext> map;
 
             public When_an_event_is_mapped_as_a_custom_action()
             {
                 Given(() =>
                 {
-                    Subject.ForwardCustomActionsTo((context, projector) => projector(context));
-
-                    Subject.Map<ProductDiscontinuedEvent>().As((@event, context) =>
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    mapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
+                    
+                    mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
                     {
                         involvedKey = @event.ProductKey;
 
                         return Task.FromResult(0);
                     });
+
+                    map = mapBuilder.Build();
                 });
 
                 When(async () =>
                 {
-                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductDiscontinuedEvent
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductDiscontinuedEvent
                     {
                         ProductKey = "c350E"
                     });
@@ -139,15 +152,17 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_a_condition_is_not_met : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        public class When_a_condition_is_not_met : GivenWhenThen
         {
             private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
 
             public When_a_condition_is_not_met()
             {
                 Given(() =>
                 {
-                    Subject.ForwardUpdatesTo(async (key, context, projector) =>
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    mapBuilder.HandleUpdatesAs(async (key, context, projector) =>
                     {
                         projection = new ProductCatalogEntry
                         {
@@ -157,17 +172,19 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
+                    mapBuilder.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Electric").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
                         return Task.FromResult(0);
                     });
+
+                    map = mapBuilder.Build();
                 });
 
                 When(async () =>
                 {
-                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductAddedToCatalogEvent
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
                     {
                         Category = "Hybrids",
                         ProductKey = "c350E"
@@ -184,15 +201,17 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_a_condition_is_met : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+        public class When_a_condition_is_met : GivenWhenThen
         {
             private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
 
             public When_a_condition_is_met()
             {
                 Given(() =>
                 {
-                    Subject.ForwardUpdatesTo(async (key, context, projector) =>
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    mapBuilder.HandleUpdatesAs(async (key, context, projector) =>
                     {
                         projection = new ProductCatalogEntry
                         {
@@ -202,17 +221,19 @@ namespace LiquidProjections.Specs
                         await projector(projection, context);
                     });
 
-                    Subject.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
+                    mapBuilder.Map<ProductAddedToCatalogEvent>().When(e => e.Category == "Hybrids").AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
 
                         return Task.FromResult(0);
                     });
+
+                    map = mapBuilder.Build();
                 });
 
                 When(async () =>
                 {
-                    Func<ProjectionContext, Task> handler = Subject.GetHandler(new ProductAddedToCatalogEvent
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
                     {
                         Category = "Hybrids",
                         ProductKey = "c350E"
@@ -233,7 +254,8 @@ namespace LiquidProjections.Specs
                 });
             }
         }
-        public class When_multiple_conditions_are_registered : GivenSubject<EventMap<ProductCatalogEntry, ProjectionContext>>
+
+        public class When_multiple_conditions_are_registered : GivenWhenThen
         {
             private Action action;
 
@@ -243,13 +265,17 @@ namespace LiquidProjections.Specs
                 {
                     action = () =>
                     {
-                        Subject.Map<ProductAddedToCatalogEvent>()
+                        var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+
+                        mapBuilder.Map<ProductAddedToCatalogEvent>()
                             .When(e => e.Category == "Hybrids")
                             .AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) => p.Category = e.Category);
 
-                        Subject.Map<ProductAddedToCatalogEvent>()
+                        mapBuilder.Map<ProductAddedToCatalogEvent>()
                             .When(e => e.Category == "Electrics")
                             .AsDeleteOf(e => e.ProductKey);
+
+                        var map = mapBuilder.Build();
                     };
                 });
             }
