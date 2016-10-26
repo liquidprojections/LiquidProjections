@@ -10,18 +10,17 @@ namespace LiquidProjections.RavenDB
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly int batchSize;
         private readonly IProjectionCache<TProjection> cache;
-        private readonly IEventMap<TProjection, RavenProjectionContext> map;
+        private IEventMap<RavenProjectionContext> map;
 
-        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IEventMap<TProjection, RavenProjectionContext> map, int batchSize = 1, IProjectionCache<TProjection> cache = null)
+        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IEventMapBuilder<TProjection, RavenProjectionContext> eventMapBuilder, int batchSize = 1, IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
-            this.map = map;
             this.batchSize = batchSize;
             this.cache = cache ?? new PassthroughCache<TProjection>();
 
             CollectionName = typeof(TProjection).Name;
 
-            InitializeMap();
+            SetupHandlers(eventMapBuilder);
         }
 
         /// <summary>
@@ -29,9 +28,9 @@ namespace LiquidProjections.RavenDB
         /// </summary>
         public string CollectionName { get; set; }
 
-        private void InitializeMap()
+        private void SetupHandlers(IEventMapBuilder<TProjection, RavenProjectionContext> eventMapBuilder)
         {
-            map.ForwardUpdatesTo(async (key, context, projector) =>
+            eventMapBuilder.HandleUpdatesAs(async (key, context, projector) =>
             {
                 string id = $"{CollectionName}/{key}";
 
@@ -39,9 +38,9 @@ namespace LiquidProjections.RavenDB
                 {
                     var p = await context.Session.LoadAsync<TProjection>(id);
                     return p ?? new TProjection
-                    {
-                        Id = id
-                    };
+                           {
+                               Id = id
+                           };
                 });
 
                 await projector(projection, context);
@@ -49,7 +48,7 @@ namespace LiquidProjections.RavenDB
                 await context.Session.StoreAsync(projection);
             });
 
-            map.ForwardDeletesTo(async (key, context) =>
+            eventMapBuilder.HandleDeletesAs(async (key, context) =>
             {
                 string id = $"{CollectionName}/{key}";
 
@@ -66,7 +65,9 @@ namespace LiquidProjections.RavenDB
                 cache.Remove(id);
             });
 
-            map.ForwardCustomActionsTo((context, projector) => projector(context));
+            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
+
+            map = eventMapBuilder.Build();
         }
 
         /// <summary>
@@ -133,14 +134,5 @@ namespace LiquidProjections.RavenDB
                 return state?.Checkpoint;
             }
         }
-    }
-
-    internal class ProjectorState
-    {
-        public string Id { get; set; }
-
-        public long Checkpoint { get; set; }
-
-        public DateTime LastUpdateUtc { get; set; }
     }
 }
