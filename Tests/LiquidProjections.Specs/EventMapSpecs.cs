@@ -17,7 +17,7 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
-                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
                     mapBuilder.Map<ProductAddedToCatalogEvent>().AsUpdateOf(e => e.ProductKey).Using((p, e, ctx) =>
                     {
                         p.Category = e.Category;
@@ -71,7 +71,7 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
-                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
                     mapBuilder.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
 
                     mapBuilder.HandleDeletesAs((key, context) =>
@@ -121,7 +121,7 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
-                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
                     mapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
                     
                     mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
@@ -161,7 +161,7 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
-                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
                     mapBuilder.HandleUpdatesAs(async (key, context, projector) =>
                     {
                         projection = new ProductCatalogEntry
@@ -210,7 +210,7 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
-                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
                     mapBuilder.HandleUpdatesAs(async (key, context, projector) =>
                     {
                         projection = new ProductCatalogEntry
@@ -265,7 +265,7 @@ namespace LiquidProjections.Specs
                 {
                     action = () =>
                     {
-                        var mapBuilder = new EventMapBuilder<ProductCatalogEntry, ProjectionContext>();
+                        var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
 
                         mapBuilder.Map<ProductAddedToCatalogEvent>()
                             .When(e => e.Category == "Hybrids")

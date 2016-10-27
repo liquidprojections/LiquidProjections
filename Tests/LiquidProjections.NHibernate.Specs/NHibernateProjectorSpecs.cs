@@ -19,8 +19,8 @@ namespace LiquidProjections.NHibernate.Specs
         public class Given_a_sqlite_projector_with_an_in_memory_event_source : GivenWhenThen
         {
             protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
-            protected NHibernateProjector<ProductCatalogEntry, ProjectorState> Projector;
-            protected EventMapBuilder<ProductCatalogEntry, NHibernateProjectionContext> Events;
+            protected NHibernateProjector<ProductCatalogEntry, string, ProjectorState> Projector;
+            protected EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext> Events;
 
             private InMemorySQLiteDatabase database;
 
@@ -33,9 +33,9 @@ namespace LiquidProjections.NHibernate.Specs
                     database = new InMemorySQLiteDatabaseBuilder().Build();
                     UseThe(database.SessionFactory);
 
-                    Events = new EventMapBuilder<ProductCatalogEntry, NHibernateProjectionContext>();
+                    Events = new EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext>();
 
-                    Projector = new NHibernateProjector<ProductCatalogEntry, ProjectorState>(
+                    Projector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
                         database.SessionFactory.OpenSession, Events, batchSize: 10);
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
@@ -68,7 +68,7 @@ namespace LiquidProjections.NHibernate.Specs
                     Events.Map<ProductAddedToCatalogEvent>()
                         .AsUpdateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
                         .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
-                            productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
                 });
 
                 When(async () =>
@@ -308,7 +308,7 @@ namespace LiquidProjections.NHibernate.Specs
         public class When_a_custom_state_key_is_set : GivenWhenThen
         {
             private readonly TaskCompletionSource<long> dispatchedCheckpointSource = new TaskCompletionSource<long>();
-            private NHibernateProjector<ProductCatalogEntry, ProjectorState> projector;
+            private NHibernateProjector<ProductCatalogEntry, string, ProjectorState> projector;
             private Transaction transaction;
             private InMemorySQLiteDatabase database;
 
@@ -321,9 +321,9 @@ namespace LiquidProjections.NHibernate.Specs
                     database = new InMemorySQLiteDatabaseBuilder().Build();
                     UseThe(database.SessionFactory);
 
-                    var events = new EventMapBuilder<ProductCatalogEntry, NHibernateProjectionContext>();
+                    var events = new EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext>();
 
-                    projector = new NHibernateProjector<ProductCatalogEntry, ProjectorState>(
+                    projector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
                         database.SessionFactory.OpenSession, events, batchSize: 10, stateKey: "CatalogEntries");
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
@@ -372,8 +372,8 @@ namespace LiquidProjections.NHibernate.Specs
             }
         }
     }
-
-    public class ProductCatalogEntry : IHaveIdentity
+ 
+    public class ProductCatalogEntry : IHaveIdentity<string>
     {
         public virtual string Id { get; set; }
         public virtual string Category { get; set; }

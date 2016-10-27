@@ -1,7 +1,7 @@
 namespace LiquidProjections.NHibernate
 {
-    public interface IHaveIdentity
+    public interface IHaveIdentity<TKey>
     {
-        string Id { get; set; }
+        TKey Id { get; set; }
     }
 }

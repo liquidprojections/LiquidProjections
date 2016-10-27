@@ -16,7 +16,7 @@ namespace LiquidProjections.RavenDB.Specs
             protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
             protected RavenProjector<ProductCatalogEntry> Projector;
             protected LruProjectionCache<ProductCatalogEntry> Cache;
-            protected EventMapBuilder<ProductCatalogEntry, RavenProjectionContext> Events;
+            protected EventMapBuilder<ProductCatalogEntry, string, RavenProjectionContext> Events;
 
             public Given_a_raven_projector_with_an_in_memory_event_source()
             {
@@ -29,7 +29,7 @@ namespace LiquidProjections.RavenDB.Specs
 
                     Cache = new LruProjectionCache<ProductCatalogEntry>(1000, TimeSpan.Zero, TimeSpan.FromHours(1), () => DateTime.Now);
 
-                    Events = new EventMapBuilder<ProductCatalogEntry, RavenProjectionContext>();
+                    Events = new EventMapBuilder<ProductCatalogEntry, string, RavenProjectionContext>();
 
                     Projector = new RavenProjector<ProductCatalogEntry>(store.OpenAsyncSession, Events, 10, Cache);
 

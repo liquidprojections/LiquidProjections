@@ -12,7 +12,11 @@ namespace LiquidProjections.RavenDB
         private readonly IProjectionCache<TProjection> cache;
         private IEventMap<RavenProjectionContext> map;
 
-        public RavenProjector(Func<IAsyncDocumentSession> sessionFactory, IEventMapBuilder<TProjection, RavenProjectionContext> eventMapBuilder, int batchSize = 1, IProjectionCache<TProjection> cache = null)
+        public RavenProjector(
+            Func<IAsyncDocumentSession> sessionFactory,
+            IEventMapBuilder<TProjection, string, RavenProjectionContext> eventMapBuilder,
+            int batchSize = 1,
+            IProjectionCache<TProjection> cache = null)
         {
             this.sessionFactory = sessionFactory;
             this.batchSize = batchSize;
@@ -28,7 +32,7 @@ namespace LiquidProjections.RavenDB
         /// </summary>
         public string CollectionName { get; set; }
 
-        private void SetupHandlers(IEventMapBuilder<TProjection, RavenProjectionContext> eventMapBuilder)
+        private void SetupHandlers(IEventMapBuilder<TProjection, string, RavenProjectionContext> eventMapBuilder)
         {
             eventMapBuilder.HandleUpdatesAs(async (key, context, projector) =>
             {
