@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Raven.Client;
 
 namespace LiquidProjections.RavenDB
 {
-    public class RavenProjector<TProjection> where TProjection : class, IHaveIdentity, new()
+    public class RavenProjector<TProjection, TKey>
+        where TProjection : class, IHaveIdentity<TKey>, new()
     {
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private readonly int batchSize;
@@ -14,7 +16,7 @@ namespace LiquidProjections.RavenDB
 
         public RavenProjector(
             Func<IAsyncDocumentSession> sessionFactory,
-            IEventMapBuilder<TProjection, string, RavenProjectionContext> eventMapBuilder,
+            IEventMapBuilder<TProjection, TKey, RavenProjectionContext> eventMapBuilder,
             int batchSize = 1,
             IProjectionCache<TProjection> cache = null)
         {
@@ -32,46 +34,48 @@ namespace LiquidProjections.RavenDB
         /// </summary>
         public string CollectionName { get; set; }
 
-        private void SetupHandlers(IEventMapBuilder<TProjection, string, RavenProjectionContext> eventMapBuilder)
+        private void SetupHandlers(IEventMapBuilder<TProjection, TKey, RavenProjectionContext> eventMapBuilder)
         {
             eventMapBuilder.HandleUpdatesAs(async (key, context, projector) =>
             {
-                string id = $"{CollectionName}/{key}";
+                string databaseId = BuildDatabaseId(key);
 
-                TProjection projection = await cache.Get(id, async () =>
+                TProjection projection = await cache.Get(databaseId, async () =>
                 {
-                    var p = await context.Session.LoadAsync<TProjection>(id);
-                    return p ?? new TProjection
-                           {
-                               Id = id
-                           };
+                    TProjection existingProjection = await context.Session.LoadAsync<TProjection>(databaseId);
+                    return existingProjection ?? new TProjection { Id = key };
                 });
 
                 await projector(projection, context);
 
-                await context.Session.StoreAsync(projection);
+                await context.Session.StoreAsync(projection, databaseId);
             });
 
             eventMapBuilder.HandleDeletesAs(async (key, context) =>
             {
-                string id = $"{CollectionName}/{key}";
+                string databaseId = BuildDatabaseId(key);
 
-                if (context.Session.Advanced.IsLoaded(id))
+                if (context.Session.Advanced.IsLoaded(databaseId))
                 {
-                    var projection = await context.Session.LoadAsync<TProjection>(id);
+                    var projection = await context.Session.LoadAsync<TProjection>(databaseId);
                     context.Session.Delete(projection);
                 }
                 else
                 {
-                    await context.Session.Advanced.DocumentStore.AsyncDatabaseCommands.DeleteAsync(id, null);
+                    await context.Session.Advanced.DocumentStore.AsyncDatabaseCommands.DeleteAsync(databaseId, null);
                 }
 
-                cache.Remove(id);
+                cache.Remove(databaseId);
             });
 
             eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
 
             map = eventMapBuilder.Build();
+        }
+
+        private string BuildDatabaseId(TKey key)
+        {
+            return $"{CollectionName}/{Convert.ToString(key, CultureInfo.InvariantCulture)}";
         }
 
         /// <summary>
@@ -117,11 +121,11 @@ namespace LiquidProjections.RavenDB
 
         private async Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
         {
-            string key = "RavenCheckpoints/" + CollectionName;
+            string checkpointDatabaseId = GetCheckpointDatabaseId();
 
-            var state = await session.LoadAsync<ProjectorState>(key) ?? new ProjectorState
+            var state = await session.LoadAsync<ProjectorState>(checkpointDatabaseId) ?? new ProjectorState
             {
-                Id = key
+                Id = checkpointDatabaseId
             };
 
             state.Checkpoint = transaction.Checkpoint;
@@ -130,11 +134,16 @@ namespace LiquidProjections.RavenDB
             await session.StoreAsync(state);
         }
 
+        private string GetCheckpointDatabaseId()
+        {
+            return "RavenCheckpoints/" + CollectionName;
+        }
+
         public async Task<long?> GetLastCheckpoint()
         {
             using (var session = sessionFactory())
             {
-                var state = await session.LoadAsync<ProjectorState>("RavenCheckpoints/" + CollectionName);
+                var state = await session.LoadAsync<ProjectorState>(GetCheckpointDatabaseId());
                 return state?.Checkpoint;
             }
         }

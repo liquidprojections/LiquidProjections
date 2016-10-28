@@ -14,7 +14,7 @@ namespace LiquidProjections.ExampleHost
     {
         private readonly Dispatcher dispatcher;
         private readonly Func<IAsyncDocumentSession> sessionFactory;
-        private RavenProjector<DocumentCountProjection> projector;
+        private RavenProjector<DocumentCountProjection, string> projector;
         private readonly Stopwatch stopwatch = new Stopwatch();
         private long eventCount = 0;
         private long transactionCount = 0;
@@ -29,10 +29,17 @@ namespace LiquidProjections.ExampleHost
 
         public async Task Start()
         {
-            var lruCache = new LruProjectionCache<DocumentCountProjection>(20000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
-                () => DateTime.Now);
+            var lruCache = new LruProjectionCache<DocumentCountProjection>(
+                capacity: 20000,
+                minimumRetention: TimeSpan.FromSeconds(30),
+                maximumRetention: TimeSpan.FromMinutes(2),
+                getNow: () => DateTime.UtcNow);
 
-            projector = new RavenProjector<DocumentCountProjection>(sessionFactory, mapBuilder, batchSize: 20, cache: lruCache);
+            projector = new RavenProjector<DocumentCountProjection, string>(
+                sessionFactory,
+                mapBuilder,
+                batchSize: 20,
+                cache: lruCache);
 
             long lastCheckpoint = await projector.GetLastCheckpoint() ?? 0;
 
@@ -51,7 +58,8 @@ namespace LiquidProjections.ExampleHost
                     int ratePerSecond = (int)(eventCount / elapsedTotalSeconds);
 
                     Console.WriteLine(
-                        $"{DateTime.Now}: Processed {eventCount} events (rate: {ratePerSecond}/second, hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
+                        $"{DateTime.Now}: Processed {eventCount} events (rate: {ratePerSecond}/second, " +
+                        $"hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
                 }
             });
         }

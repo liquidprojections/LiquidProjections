@@ -5,7 +5,7 @@ using LiquidProjections.RavenDB;
 
 namespace LiquidProjections.ExampleHost
 {
-    public class DocumentCountProjection : IHaveIdentity
+    public class DocumentCountProjection : IHaveIdentity<string>
     {
         public DocumentCountProjection()
         {
@@ -35,7 +35,8 @@ namespace LiquidProjections.ExampleHost
 
         public ValidityPeriod GetOrAddPeriod(int sequence)
         {
-            var period = Periods.FirstOrDefault(p => p.Sequence == sequence);
+            ValidityPeriod period = Periods.FirstOrDefault(p => p.Sequence == sequence);
+
             if (period == null)
             {
                 period = new ValidityPeriod
@@ -49,10 +50,7 @@ namespace LiquidProjections.ExampleHost
             return period;
         }
 
-        public override string ToString()
-        {
-            return string.Format("Id: {0}, Kind:{1} State:{2}", Id, Kind, State);
-        }
+        public override string ToString() => $"Id: {Id}, Kind:{Kind} State:{State}";
     }
 
     public class ValidityPeriod
