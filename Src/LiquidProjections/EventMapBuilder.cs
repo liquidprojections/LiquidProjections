@@ -8,21 +8,21 @@ namespace LiquidProjections
     /// <summary>
     /// Allows mapping events to updates, deletes or custom actions on (existing) projections in a fluent fashion. 
     /// </summary>
-    public class EventMapBuilder<TProjection, TContext> : IEventMapBuilder<TProjection, TContext>
+    public class EventMapBuilder<TProjection, TKey, TContext> : IEventMapBuilder<TProjection, TKey, TContext>
     {
-        private readonly EventMap<TProjection, TContext> eventMap = new EventMap<TProjection, TContext>();
+        private readonly EventMap<TProjection, TKey, TContext> eventMap = new EventMap<TProjection, TKey, TContext>();
 
         public EventMappingBuilder<TEvent> Map<TEvent>()
         {
             return new EventMappingBuilder<TEvent>(eventMap);
         }
 
-        public void HandleUpdatesAs(UpdateHandler<TContext, TProjection> handler)
+        public void HandleUpdatesAs(UpdateHandler<TKey, TContext, TProjection> handler)
         {
             eventMap.Update = handler;
         }
 
-        public void HandleDeletesAs(DeleteHandler<TContext> handler)
+        public void HandleDeletesAs(DeleteHandler<TKey, TContext> handler)
         {
             eventMap.Delete = handler;
         }
@@ -39,10 +39,10 @@ namespace LiquidProjections
 
         public class EventMappingBuilder<TEvent>
         {
-            private readonly EventMap<TProjection, TContext> eventMap;
+            private readonly EventMap<TProjection, TKey, TContext> eventMap;
             private readonly List<Func<TEvent, bool>> predicates = new List<Func<TEvent, bool>>();
 
-            public EventMappingBuilder(EventMap<TProjection, TContext> eventMap)
+            public EventMappingBuilder(EventMap<TProjection, TKey, TContext> eventMap)
             {
                 this.eventMap = eventMap;
             }
@@ -53,18 +53,16 @@ namespace LiquidProjections
                 return this;
             }
 
-            public UpdateActionBuilder<TEvent> AsUpdateOf(Func<TEvent, string> selector)
+            public UpdateActionBuilder<TEvent> AsUpdateOf(Func<TEvent, TKey> selector)
             {
                 return new UpdateActionBuilder<TEvent>(projector =>
                 {
-                    Add(
-                        (@event, ctx) =>
-                            eventMap.Update(selector(@event), ctx,
-                                (projection, innerCtx) => projector(projection, @event, innerCtx)));
+                    Add((@event, ctx) => eventMap.Update(selector(@event), ctx,
+                        (projection, innerCtx) => projector(projection, @event, innerCtx)));
                 });
             }
 
-            public void AsDeleteOf(Func<TEvent, string> selector)
+            public void AsDeleteOf(Func<TEvent, TKey> selector)
             {
                 Add((@event, ctx) => eventMap.Delete(selector(@event), ctx));
             }

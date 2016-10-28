@@ -18,7 +18,7 @@ namespace LiquidProjections.ExampleHost
         private readonly Stopwatch stopwatch = new Stopwatch();
         private long eventCount = 0;
         private long transactionCount = 0;
-        private readonly EventMapBuilder<DocumentCountProjection, RavenProjectionContext> mapBuilder;
+        private readonly EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext> mapBuilder;
 
         public CountsProjectionBootstrapper(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
         {
@@ -56,9 +56,9 @@ namespace LiquidProjections.ExampleHost
             });
         }
 
-        private static EventMapBuilder<DocumentCountProjection, RavenProjectionContext> BuildEventMap()
+        private static EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext> BuildEventMap()
         {
-            var map = new EventMapBuilder<DocumentCountProjection, RavenProjectionContext>();
+            var map = new EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext>();
 
             map.Map<CountryRegisteredEvent>().As(async (e, ctx) =>
             {

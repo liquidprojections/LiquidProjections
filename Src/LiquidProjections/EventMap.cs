@@ -4,13 +4,13 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
-    public class EventMap<TProjection, TContext> : IEventMap<TContext>
+    public class EventMap<TProjection, TKey, TContext> : IEventMap<TContext>
     {
         private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
 
-        internal UpdateHandler<TContext, TProjection> Update { get; set; }
+        internal UpdateHandler<TKey, TContext, TProjection> Update { get; set; }
 
-        internal DeleteHandler<TContext> Delete { get; set; }
+        internal DeleteHandler<TKey, TContext> Delete { get; set; }
 
         internal CustomHandler<TContext> Do { get; set; }
 

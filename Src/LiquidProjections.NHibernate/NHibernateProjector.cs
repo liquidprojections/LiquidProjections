@@ -6,9 +6,8 @@ using NHibernate;
 
 namespace LiquidProjections.NHibernate
 {
-    // TODO: Support non-string keys
-    public sealed class NHibernateProjector<TProjection, TState>
-        where TProjection : class, IHaveIdentity, new()
+    public sealed class NHibernateProjector<TProjection, TKey, TState>
+        where TProjection : class, IHaveIdentity<TKey>, new()
         where TState : class, IProjectorState, new()
     {
         private readonly Func<ISession> sessionFactory;
@@ -18,7 +17,8 @@ namespace LiquidProjections.NHibernate
 
         public NHibernateProjector(
             Func<ISession> sessionFactory,
-            IEventMapBuilder<TProjection, NHibernateProjectionContext> eventMapBuilder,
+            IEventMapBuilder<TProjection, TKey, NHibernateProjectionContext> eventMapBuilder,
+
             int batchSize = 1,
             string stateKey = null)
         {
@@ -30,7 +30,7 @@ namespace LiquidProjections.NHibernate
             map = eventMapBuilder.Build();
         }
 
-        private void SetupHandlers(IEventMapBuilder<TProjection, NHibernateProjectionContext> eventMapBuilder)
+        private void SetupHandlers(IEventMapBuilder<TProjection, TKey, NHibernateProjectionContext> eventMapBuilder)
         {
             eventMapBuilder.HandleUpdatesAs(async (key, context, projector) =>
             {
