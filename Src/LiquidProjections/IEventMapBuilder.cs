@@ -5,6 +5,8 @@ namespace LiquidProjections
 {
     public interface IEventMapBuilder<in TProjection, out TKey, TContext>
     {
+        void HandleCreatesAs(CreateHandler<TKey, TContext, TProjection> handler);
+
         void HandleUpdatesAs(UpdateHandler<TKey, TContext, TProjection> handler);
 
         void HandleDeletesAs(DeleteHandler<TKey, TContext> handler);
@@ -13,6 +15,11 @@ namespace LiquidProjections
 
         IEventMap<TContext> Build();
     }
+
+    public delegate Task CreateHandler<in TKey, TContext, out TProjection>(
+        TKey key,
+        TContext context,
+        Func<TProjection, TContext, Task> projector);
 
     public delegate Task UpdateHandler<in TKey, TContext, out TProjection>(
         TKey key,

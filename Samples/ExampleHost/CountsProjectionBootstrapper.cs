@@ -69,7 +69,7 @@ namespace LiquidProjections.ExampleHost
                 });
             });
 
-            map.Map<WarrantAssignedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
+            map.Map<WarrantAssignedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Warrant";
                 p.Kind = e.Kind;
@@ -77,7 +77,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<CertificateIssuedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
+            map.Map<CertificateIssuedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Certificate";
                 p.Kind = e.Kind;
@@ -93,7 +93,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<LicenseGrantedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
+            map.Map<LicenseGrantedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Audit";
                 p.Kind = e.Kind;
@@ -101,7 +101,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<ContractNegotiatedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
+            map.Map<ContractNegotiatedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "Task";
                 p.Kind = e.Kind;
@@ -109,7 +109,7 @@ namespace LiquidProjections.ExampleHost
                 p.State = e.InitialState;
             });
 
-            map.Map<BondIssuedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
+            map.Map<BondIssuedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
             {
                 p.Type = "IsolationCertificate";
                 p.Kind = e.Kind;

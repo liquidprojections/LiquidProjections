@@ -8,6 +8,60 @@ namespace LiquidProjections.Specs
 {
     namespace EventMapSpecs
     {
+        public class When_an_event_is_mapped_as_a_create : GivenWhenThen
+        {
+            private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
+
+            public When_an_event_is_mapped_as_a_create()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+                    mapBuilder.Map<ProductAddedToCatalogEvent>().AsCreateOf(e => e.ProductKey).Using((p, e, ctx) =>
+                    {
+                        p.Category = e.Category;
+
+                        return Task.FromResult(0);
+                    });
+
+                    mapBuilder.HandleCreatesAs(async (key, context, projector) =>
+                    {
+                        projection = new ProductCatalogEntry
+                        {
+                            Id = key,
+                        };
+
+                        await projector(projection, context);
+                    });
+
+                    map = mapBuilder.Build();
+                });
+
+                When(async () =>
+                {
+                    Func<ProjectionContext, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_properly_pass_the_mapping_to_the_creating_handler()
+            {
+                projection.ShouldBeEquivalentTo(new
+                {
+                    Id = "c350E",
+                    Category = "Hybrids",
+                    Deleted = false
+                });
+            }
+        }
+
         public class When_an_event_is_mapped_as_an_update : GivenWhenThen
         {
             private ProductCatalogEntry projection;
@@ -110,7 +164,6 @@ namespace LiquidProjections.Specs
                 });
             }
         }
-
 
         public class When_an_event_is_mapped_as_a_custom_action : GivenWhenThen
         {
