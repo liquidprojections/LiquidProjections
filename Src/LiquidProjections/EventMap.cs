@@ -8,6 +8,8 @@ namespace LiquidProjections
     {
         private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
 
+        internal CreateHandler<TKey, TContext, TProjection> Create { get; set; }
+
         internal UpdateHandler<TKey, TContext, TProjection> Update { get; set; }
 
         internal DeleteHandler<TKey, TContext> Delete { get; set; }

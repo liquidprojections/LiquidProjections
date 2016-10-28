@@ -59,10 +59,12 @@ namespace LiquidProjections.ExampleHost
                     Checkpoint = ++lastCheckpoint
                 };
 
-                string json = CurrentReader.ReadLine();
+                string json;
 
                 do
                 {
+                    json = CurrentReader.ReadLine();
+
                     if (json != null)
                     {
                         transaction.Events.Add(new EventEnvelope
@@ -87,10 +89,8 @@ namespace LiquidProjections.ExampleHost
                             Checkpoint = ++lastCheckpoint
                         };
                     }
-
-                    json = CurrentReader.ReadLine();
                 }
-                while ((json != null) && transactions.Count < pageSize);
+                while ((json != null) && (transactions.Count < pageSize));
 
                 return transactions.ToArray();
             });

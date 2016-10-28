@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 using NHibernate;
@@ -18,7 +19,6 @@ namespace LiquidProjections.NHibernate
         public NHibernateProjector(
             Func<ISession> sessionFactory,
             IEventMapBuilder<TProjection, TKey, NHibernateProjectionContext> eventMapBuilder,
-
             int batchSize = 1,
             string stateKey = null)
         {
@@ -32,16 +32,24 @@ namespace LiquidProjections.NHibernate
 
         private void SetupHandlers(IEventMapBuilder<TProjection, TKey, NHibernateProjectionContext> eventMapBuilder)
         {
+            eventMapBuilder.HandleCreatesAs(async (key, context, projector) =>
+            {
+                TProjection projection = new TProjection { Id = key };
+                await projector(projection, context);
+                context.Session.Save(projection);
+            });
+
             eventMapBuilder.HandleUpdatesAs(async (key, context, projector) =>
             {
-                TProjection existingProjection = context.Session.Get<TProjection>(key);
-                TProjection projection = existingProjection ?? new TProjection { Id = key };
-                await projector(projection, context);
+                TProjection projection = context.Session.Get<TProjection>(key);
 
-                if (existingProjection == null)
+                if (projection == null)
                 {
-                    context.Session.Save(projection);
+                    throw new NHibernateProjectorException(
+                        $"Cannot update {typeof(TProjection)} projection with key {key}. The projection does not exist.");
                 }
+
+                await projector(projection, context);
             });
 
             eventMapBuilder.HandleDeletesAs((key, context) =>
@@ -75,14 +83,9 @@ namespace LiquidProjections.NHibernate
                     foreach (Transaction transaction in batch)
                     {
                         await ProjectTransaction(transaction, session);
-
-                        // We need this after each transaction because of possible flushes (auto or manual)
-                        // while projecting the transaction.
-                        // So that indempotency must only be supported for one transaction being projected twice
-                        // without any other transactions projected in between.
-                        StoreLastCheckpoint(session, transaction);
                     }
 
+                    StoreLastCheckpoint(session, batch.Last());
                     session.Transaction.Commit();
                 }
             }

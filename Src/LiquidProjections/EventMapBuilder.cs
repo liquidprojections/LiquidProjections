@@ -17,6 +17,11 @@ namespace LiquidProjections
             return new EventMappingBuilder<TEvent>(eventMap);
         }
 
+        public void HandleCreatesAs(CreateHandler<TKey, TContext, TProjection> handler)
+        {
+            eventMap.Create = handler;
+        }
+
         public void HandleUpdatesAs(UpdateHandler<TKey, TContext, TProjection> handler)
         {
             eventMap.Update = handler;
@@ -53,6 +58,15 @@ namespace LiquidProjections
                 return this;
             }
 
+            public CreateActionBuilder<TEvent> AsCreateOf(Func<TEvent, TKey> selector)
+            {
+                return new CreateActionBuilder<TEvent>(projector =>
+                {
+                    Add((@event, ctx) => eventMap.Create(selector(@event), ctx,
+                        (projection, innerCtx) => projector(projection, @event, innerCtx)));
+                });
+            }
+
             public UpdateActionBuilder<TEvent> AsUpdateOf(Func<TEvent, TKey> selector)
             {
                 return new UpdateActionBuilder<TEvent>(projector =>
@@ -72,12 +86,45 @@ namespace LiquidProjections
                 Add((@event, ctx) => eventMap.Do(ctx, innerCtx => action(@event, innerCtx)));
             }
 
+            public void As(Action<TEvent, TContext> action)
+            {
+                As((anEvent, context) =>
+                {
+                    action(anEvent, context);
+                    return Task.FromResult(0);
+                });
+            }
+
             private void Add(Func<TEvent, TContext, Task> action)
             {
                 eventMap.Add<TEvent>((@event, ctx) =>
                 {
                     return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
                 });
+            }
+        }
+
+        public class CreateActionBuilder<TEvent>
+        {
+            private readonly Action<Func<TProjection, TEvent, TContext, Task>> action;
+
+            public CreateActionBuilder(Action<Func<TProjection, TEvent, TContext, Task>> action)
+            {
+                this.action = action;
+            }
+
+            public void Using(Action<TProjection, TEvent, TContext> projector)
+            {
+                Using((p, e, ctx) =>
+                {
+                    projector(p, e, ctx);
+                    return Task.FromResult(0);
+                });
+            }
+
+            public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+            {
+                action(projector);
             }
         }
 
