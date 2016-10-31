@@ -140,7 +140,9 @@ namespace LiquidProjections.RavenDB
                         Session = session,
                         StreamId = transaction.StreamId,
                         TimeStampUtc = transaction.TimeStampUtc,
-                        Checkpoint = transaction.Checkpoint
+                        Checkpoint = transaction.Checkpoint,
+                        EventHeaders = @event.Headers,
+                        TransactionHeaders = transaction.Headers
                     });
                 }
             }

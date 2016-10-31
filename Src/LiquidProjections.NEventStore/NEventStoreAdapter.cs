@@ -254,7 +254,8 @@ namespace LiquidProjections.NEventStore
                 {
                     Body = @event.Body,
                     Headers = @event.Headers
-                }))
+                })),
+                Headers = commit.Headers
             };
         }
 

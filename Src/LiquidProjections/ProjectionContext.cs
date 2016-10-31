@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace LiquidProjections
 {
@@ -21,5 +22,15 @@ namespace LiquidProjections
         /// Gets or sets the checkpoint of the commit that is currently being dispatched.
         /// </summary>
         public long Checkpoint { get; set; }
+
+        /// <summary>
+        /// A collection of named headers related to the event.
+        /// </summary>
+        public IDictionary<string, object> EventHeaders { get; set; }
+
+        /// <summary>
+        /// A collection of named headers related to the transaction.
+        /// </summary>
+        public IDictionary<string, object> TransactionHeaders { get; set; }
     }
 }

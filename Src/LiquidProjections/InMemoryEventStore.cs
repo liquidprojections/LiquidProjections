@@ -65,6 +65,25 @@ namespace LiquidProjections
                 await subscriber.Send(transactions);
             }
         }
+
+        public async Task<Transaction> WriteWithHeaders(object anEvent, IDictionary<string, object> headers)
+        {
+            Transaction transaction = new Transaction
+            {
+                Events = new[]
+                {
+                    new EventEnvelope
+                    {
+                        Body = anEvent,
+                        Headers = headers
+                    }
+                }
+            };
+
+            await Write(transaction);
+
+            return transaction;
+        }
     }
 
     internal class Subscriber : IDisposable
