@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Chill;
@@ -614,12 +615,100 @@ namespace LiquidProjections.RavenDB.Specs
                 }
             }
         }
+
+        public class When_an_event_has_a_header : Given_a_raven_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_has_a_header()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((projection, anEvent, context) =>
+                        {
+                            projection.Category = anEvent.Category;
+                            projection.AddedBy = (string)context.EventHeaders["UserName"];
+                        });
+                });
+
+                When(() => The<MemoryEventSource>().WriteWithHeaders(
+                    new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    },
+                    new Dictionary<string, object>
+                    {
+                        ["UserName"] = "Pavel"
+                    }));
+            }
+
+            [Fact]
+            public async Task Then_it_should_use_the_header()
+            {
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
+                    entry.Should().NotBeNull();
+                    entry.AddedBy.Should().Be("Pavel");
+                }
+            }
+        }
+
+        public class When_a_transaction_has_a_header : Given_a_raven_projector_with_an_in_memory_event_source
+        {
+            public When_a_transaction_has_a_header()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((projection, anEvent, context) =>
+                        {
+                            projection.Category = anEvent.Category;
+                            projection.AddedBy = (string)context.TransactionHeaders["UserName"];
+                        });
+                });
+
+                When(() => The<MemoryEventSource>().Write(
+                    new Transaction
+                    {
+                        Events = new[]
+                        {
+                            new EventEnvelope
+                            {
+                                Body = new ProductAddedToCatalogEvent
+                                {
+                                    ProductKey = "c350E",
+                                    Category = "Hybrid"
+                                }
+                            }
+                        },
+                        Headers = new Dictionary<string, object>
+                        {
+                            ["UserName"] = "Pavel"
+                        }
+                    }));
+            }
+
+            [Fact]
+            public async Task Then_it_should_use_the_header()
+            {
+                using (var session = The<IDocumentStore>().OpenAsyncSession())
+                {
+                    var entry = await session.LoadAsync<ProductCatalogEntry>("ProductCatalogEntry/c350E");
+                    entry.Should().NotBeNull();
+                    entry.AddedBy.Should().Be("Pavel");
+                }
+            }
+        }
     }
 
     public class ProductCatalogEntry : IHaveIdentity
     {
         public string Id { get; set; }
         public string Category { get; set; }
+        public string AddedBy { get; set; }
     }
 
     public class ProductAddedToCatalogEvent

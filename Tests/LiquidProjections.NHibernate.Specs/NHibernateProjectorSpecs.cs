@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -503,12 +504,100 @@ namespace LiquidProjections.NHibernate.Specs
                 database?.Dispose();
             }
         }
+
+        public class When_an_event_has_a_header : Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_has_a_header()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((projection, anEvent, context) =>
+                        {
+                            projection.Category = anEvent.Category;
+                            projection.AddedBy = (string)context.EventHeaders["UserName"];
+                        });
+                });
+
+                When(() => The<MemoryEventSource>().WriteWithHeaders(
+                    new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    },
+                    new Dictionary<string, object>
+                    {
+                        ["UserName"] = "Pavel"
+                    }));
+            }
+
+            [Fact]
+            public void Then_it_should_use_the_header()
+            {
+                using (var session = The<ISessionFactory>().OpenSession())
+                {
+                    var entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.AddedBy.Should().Be("Pavel");
+                }
+            }
+        }
+
+        public class When_a_transaction_has_a_header : Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_a_transaction_has_a_header()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((projection, anEvent, context) =>
+                        {
+                            projection.Category = anEvent.Category;
+                            projection.AddedBy = (string)context.TransactionHeaders["UserName"];
+                        });
+                });
+
+                When(() => The<MemoryEventSource>().Write(
+                    new Transaction
+                    {
+                        Events = new[]
+                        {
+                            new EventEnvelope
+                            {
+                                Body = new ProductAddedToCatalogEvent
+                                {
+                                    ProductKey = "c350E",
+                                    Category = "Hybrid"
+                                }
+                            }
+                        },
+                        Headers = new Dictionary<string, object>
+                        {
+                            ["UserName"] = "Pavel"
+                        }
+                    }));
+            }
+
+            [Fact]
+            public void Then_it_should_use_the_header()
+            {
+                using (var session = The<ISessionFactory>().OpenSession())
+                {
+                    var entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.AddedBy.Should().Be("Pavel");
+                }
+            }
+        }
     }
- 
+
     public class ProductCatalogEntry : IHaveIdentity<string>
     {
         public virtual string Id { get; set; }
         public virtual string Category { get; set; }
+        public virtual string AddedBy { get; set; }
     }
 
     internal class ProductCatalogEntryClassMap : ClassMap<ProductCatalogEntry>
@@ -517,6 +606,7 @@ namespace LiquidProjections.NHibernate.Specs
         {
             Id(p => p.Id).Not.Nullable().Length(100);
             Map(p => p.Category).Nullable().Length(100);
+            Map(p => p.AddedBy).Nullable().Length(100);
         }
     }
 

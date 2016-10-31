@@ -37,5 +37,10 @@ namespace LiquidProjections
         /// The checkpoint that represents the storage level order.
         /// </summary>
         public long Checkpoint { get; set; }
+
+        /// <summary>
+        /// A collection of named headers related to the transaction.
+        /// </summary>
+        public IDictionary<string, object> Headers { get; set; }
     }
 }
