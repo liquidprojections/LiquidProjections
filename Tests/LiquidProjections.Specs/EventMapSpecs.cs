@@ -168,15 +168,179 @@ namespace LiquidProjections.Specs
         public class When_an_event_is_mapped_as_a_custom_action : GivenWhenThen
         {
             private string involvedKey;
-            private IEventMap<ProjectionContext> map;
+            private IEventMap<object> map;
 
             public When_an_event_is_mapped_as_a_custom_action()
             {
                 Given(() =>
                 {
+                    var mapBuilder = new EventMapBuilder<object>();
+                    mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
+                    {
+                        involvedKey = @event.ProductKey;
+
+                        return Task.FromResult(0);
+                    });
+
+                    map = mapBuilder.Build();
+                });
+
+                When(async () =>
+                {
+                    Func<object, Task> handler = map.GetHandler(new ProductDiscontinuedEvent
+                    {
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new object());
+                });
+            }
+
+            [Fact]
+            public void It_should_properly_pass_the_mapping_to_the_custom_handler()
+            {
+                involvedKey.Should().Be("c350E");
+            }
+        }
+
+        public class When_a_condition_is_not_met : GivenWhenThen
+        {
+            private readonly ProductCatalogEntry projection = new ProductCatalogEntry
+            {
+                Id = "c350E",
+                Category = "Electrics"
+            };
+            private IEventMap<object> map;
+
+            public When_a_condition_is_not_met()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<object>();
+                    mapBuilder.Map<ProductAddedToCatalogEvent>()
+                        .When(e => e.Category == "Electric")
+                        .As((e, ctx) =>
+                        {
+                            projection.Category = e.Category;
+
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build();
+                });
+
+                When(async () =>
+                {
+                    Func<object, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new object());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_invoke_any_handler()
+            {
+                projection.ShouldBeEquivalentTo(new
+                {
+                    Id = "c350E",
+                    Category = "Electrics",
+                    Deleted = false
+                });
+            }
+        }
+
+        public class When_a_condition_is_met : GivenWhenThen
+        {
+            private readonly ProductCatalogEntry projection = new ProductCatalogEntry
+            {
+                Id = "c350E"
+            };
+            private IEventMap<object> map;
+
+            public When_a_condition_is_met()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<object>();
+                    mapBuilder.Map<ProductAddedToCatalogEvent>()
+                        .When(e => e.Category == "Hybrids")
+                        .As((e, ctx) =>
+                        {
+                            projection.Category = e.Category;
+
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build();
+                });
+
+                When(async () =>
+                {
+                    Func<object, Task> handler = map.GetHandler(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    });
+
+                    await handler(new object());
+                });
+            }
+
+            [Fact]
+            public void It_should_invoke_the_right_handler()
+            {
+                projection.ShouldBeEquivalentTo(new
+                {
+                    Id = "c350E",
+                    Category = "Hybrids",
+                    Deleted = false
+                });
+            }
+        }
+
+        public class When_multiple_conditions_are_registered : GivenWhenThen
+        {
+            private Action action;
+
+            public When_multiple_conditions_are_registered()
+            {
+                When(() =>
+                {
+                    action = () =>
+                    {
+                        var mapBuilder = new EventMapBuilder<object>();
+
+                        mapBuilder.Map<ProductAddedToCatalogEvent>()
+                            .When(e => e.Category != "Hybrids")
+                            .When(e => e.Category != "Electrics")
+                            .As((e, ctx) => {});
+
+                        var map = mapBuilder.Build();
+                    };
+                });
+            }
+
+            [Fact]
+            public void It_should_allow_all_of_them()
+            {
+                action.ShouldNotThrow();
+            }
+        }
+
+        public class When_an_event_is_mapped_as_a_custom_action_on_a_projection : GivenWhenThen
+        {
+            private string involvedKey;
+            private IEventMap<ProjectionContext> map;
+
+            public When_an_event_is_mapped_as_a_custom_action_on_a_projection()
+            {
+                Given(() =>
+                {
                     var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
-                    mapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
-                    
                     mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
                     {
                         involvedKey = @event.ProductKey;
@@ -205,12 +369,12 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_a_condition_is_not_met : GivenWhenThen
+        public class When_a_condition_is_not_met_on_a_projection : GivenWhenThen
         {
             private ProductCatalogEntry projection;
             private IEventMap<ProjectionContext> map;
 
-            public When_a_condition_is_not_met()
+            public When_a_condition_is_not_met_on_a_projection()
             {
                 Given(() =>
                 {
@@ -254,12 +418,12 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_a_condition_is_met : GivenWhenThen
+        public class When_a_condition_is_met_on_a_projection : GivenWhenThen
         {
             private ProductCatalogEntry projection;
             private IEventMap<ProjectionContext> map;
 
-            public When_a_condition_is_met()
+            public When_a_condition_is_met_on_a_projection()
             {
                 Given(() =>
                 {
@@ -308,11 +472,11 @@ namespace LiquidProjections.Specs
             }
         }
 
-        public class When_multiple_conditions_are_registered : GivenWhenThen
+        public class When_multiple_conditions_are_registered_on_a_projection : GivenWhenThen
         {
             private Action action;
 
-            public When_multiple_conditions_are_registered()
+            public When_multiple_conditions_are_registered_on_a_projection()
             {
                 When(() =>
                 {
@@ -351,18 +515,11 @@ namespace LiquidProjections.Specs
         {
             public string ProductKey { get; set; }
             public string Category { get; set; }
-
-            public long Version { get; set; }
         }
 
         public class ProductDiscontinuedEvent
         {
             public string ProductKey { get; set; }
-        }
-
-        public class CategoryDiscontinuedEvent
-        {
-            public string Category { get; set; }
         }
     }
 }

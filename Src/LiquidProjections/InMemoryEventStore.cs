@@ -56,7 +56,11 @@ namespace LiquidProjections
         {
             foreach (var transaction in transactions)
             {
-                transaction.Checkpoint = (++lastCheckpoint);
+                if (transaction.Checkpoint == -1)
+                {
+                    transaction.Checkpoint = (++lastCheckpoint);
+                }
+
                 history.Add(transaction);
             }
 

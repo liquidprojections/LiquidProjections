@@ -17,7 +17,4 @@ namespace LiquidProjections
         /// </summary>
         Func<TContext, Task> GetHandler(object @event);
     }
-
-
-
 }

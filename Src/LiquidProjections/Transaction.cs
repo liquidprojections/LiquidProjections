@@ -11,6 +11,7 @@ namespace LiquidProjections
         public Transaction()
         {
             Events = new List<EventEnvelope>();
+            Checkpoint = -1;
         }
 
         /// <summary>
