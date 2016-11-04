@@ -22,16 +22,19 @@ namespace LiquidProjections.Specs
                     UseThe(new MemoryEventSource());
 
                     Events = new EventMapBuilder<ProjectionContext>();
+                });
+            }
 
-                    UseThe(new Projector(Events));
+            protected void StartProjecting()
+            {
+                UseThe(new Projector(Events));
 
-                    var dispatcher = new Dispatcher(The<MemoryEventSource>());
+                var dispatcher = new Dispatcher(The<MemoryEventSource>());
 
-                    dispatcher.Subscribe(0, async transactions =>
-                    {
-                        await The<Projector>().Handle(transactions);
-                        DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
-                    });
+                dispatcher.Subscribe(0, async transactions =>
+                {
+                    await The<Projector>().Handle(transactions);
+                    DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
                 });
             }
         }
@@ -53,6 +56,8 @@ namespace LiquidProjections.Specs
 
                         return Task.FromResult(false);
                     });
+
+                    StartProjecting();
                 });
 
                 When(async () =>
@@ -124,6 +129,8 @@ namespace LiquidProjections.Specs
                     });
 
                     action = async () => await DispatchedCheckpointSource.Task;
+
+                    StartProjecting();
                 });
             }
 
@@ -148,6 +155,8 @@ namespace LiquidProjections.Specs
                             projection.Category = anEvent.Category;
                             projection.AddedBy = (string) context.EventHeaders["UserName"];
                         });
+
+                    StartProjecting();
                 });
 
                 When(() => The<MemoryEventSource>().WriteWithHeaders(
@@ -183,6 +192,8 @@ namespace LiquidProjections.Specs
                             projection.Category = anEvent.Category;
                             projection.AddedBy = (string) context.TransactionHeaders["UserName"];
                         });
+
+                    StartProjecting();
                 });
 
                 When(() => The<MemoryEventSource>().Write(

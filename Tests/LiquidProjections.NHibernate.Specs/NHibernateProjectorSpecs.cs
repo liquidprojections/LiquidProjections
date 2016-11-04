@@ -24,122 +24,34 @@ namespace LiquidProjections.NHibernate.Specs
             protected NHibernateProjector<ProductCatalogEntry, string, ProjectorState> Projector;
             protected EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext> Events;
 
-            private InMemorySQLiteDatabase database;
-
             public Given_a_sqlite_projector_with_an_in_memory_event_source()
             {
                 Given(() =>
                 {
                     UseThe(new MemoryEventSource());
 
-                    database = new InMemorySQLiteDatabaseBuilder().Build();
-                    UseThe(database.SessionFactory);
+                    UseThe(new InMemorySQLiteDatabaseBuilder().Build());
+                    UseThe(The<InMemorySQLiteDatabase>().SessionFactory);
 
                     Events = new EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext>();
-
-                    Projector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
-                        database.SessionFactory.OpenSession, Events, batchSize: 10);
-
-                    var dispatcher = new Dispatcher(The<MemoryEventSource>());
-
-                    dispatcher.Subscribe(0, async transactions =>
-                    {
-                        await Projector.Handle(transactions);
-                        DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
-                    });
                 });
             }
 
-            protected override void Dispose(bool disposing)
+            protected void StartProjecting()
             {
-                base.Dispose(disposing);
-
-                database?.Dispose();
-            }
-        }
-
-        public class When_an_event_requires_an_update_of_a_non_existing_projection :
-            Given_a_sqlite_projector_with_an_in_memory_event_source
-        {
-            public When_an_event_requires_an_update_of_a_non_existing_projection()
-            {
-                Given(() =>
+                Projector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
+                    The<ISessionFactory>().OpenSession, Events)
                 {
-                    Events.Map<ProductMovedToCatalogEvent>()
-                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
-                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
-                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+                    BatchSize = 10
+                };
+
+                var dispatcher = new Dispatcher(The<MemoryEventSource>());
+
+                dispatcher.Subscribe(0, async transactions =>
+                {
+                    await Projector.Handle(transactions);
+                    DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
                 });
-            }
-
-            [Fact]
-            public async Task Then_it_should_throw()
-            {
-                await Assert.ThrowsAsync<NHibernateProjectorException>(() =>
-                    The<MemoryEventSource>().Write(new ProductMovedToCatalogEvent
-                    {
-                        ProductKey = "c350E",
-                        Category = "Hybrid"
-                    }));
-            }
-        }
-
-        public class When_an_event_requires_an_update_of_an_existing_projection :
-            Given_a_sqlite_projector_with_an_in_memory_event_source
-        {
-            private Transaction transaction;
-
-            public When_an_event_requires_an_update_of_an_existing_projection()
-            {
-                Given(() =>
-                {
-                    Events.Map<ProductMovedToCatalogEvent>()
-                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
-                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
-                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
-
-                    var existingEntry = new ProductCatalogEntry
-                    {
-                        Id = "c350E",
-                        Category = "Gas"
-                    };
-
-                    using (ISession session = The<ISessionFactory>().OpenSession())
-                    {
-                        session.Save(existingEntry);
-                        session.Flush();
-                    }
-                });
-
-                When(async () =>
-                {
-                    transaction = await The<MemoryEventSource>().Write(new ProductMovedToCatalogEvent
-                    {
-                        ProductKey = "c350E",
-                        Category = "Hybrid"
-                    });
-                });
-            }
-
-            [Fact]
-            public async Task Then_it_should_update_the_projection()
-            {
-                long lastCheckpoint = await DispatchedCheckpointSource.Task;
-                lastCheckpoint.Should().Be(transaction.Checkpoint);
-
-                using (ISession session = The<ISessionFactory>().OpenSession())
-                {
-                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
-                    entry.Should().NotBeNull();
-                    entry.Category.Should().Be("Hybrid");
-                }
-            }
-
-            [Fact]
-            public void Then_it_should_track_the_transaction_checkpoint()
-            {
-                long? checkpoint = Projector.GetLastCheckpoint();
-                checkpoint.Should().Be(transaction.Checkpoint);
             }
         }
 
@@ -166,6 +78,8 @@ namespace LiquidProjections.NHibernate.Specs
                         session.Save(existingEntry);
                         session.Flush();
                     }
+
+                    StartProjecting();
                 });
             }
 
@@ -193,6 +107,8 @@ namespace LiquidProjections.NHibernate.Specs
                         .AsCreateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
                         .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
                                 productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
+                    StartProjecting();
                 });
 
                 When(async () =>
@@ -227,10 +143,407 @@ namespace LiquidProjections.NHibernate.Specs
             }
         }
 
-        public class When_an_unloaded_projection_must_be_deleted :
+        public class When_an_event_requires_a_create_if_does_not_exist_of_a_existing_projection :
             Given_a_sqlite_projector_with_an_in_memory_event_source
         {
-            public When_an_unloaded_projection_must_be_deleted()
+            private Transaction transaction;
+
+            public When_an_event_requires_a_create_if_does_not_exist_of_a_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateIfDoesNotExistOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_do_nothing()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Gas");
+                }
+            }
+        }
+
+        public class When_an_event_requires_a_create_if_does_not_exist_of_a_new_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_a_create_if_does_not_exist_of_a_new_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateIfDoesNotExistOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_create_a_new_projection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Hybrid");
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_track_the_transaction_checkpoint()
+            {
+                long? checkpoint = Projector.GetLastCheckpoint();
+                checkpoint.Should().Be(transaction.Checkpoint);
+            }
+        }
+
+        public class When_an_event_requires_a_create_or_update_of_a_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_a_create_or_update_of_a_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOrUpdateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_update_the_projection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Hybrid");
+                }
+            }
+        }
+
+        public class When_an_event_requires_a_create_or_update_of_a_new_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_a_create_or_update_of_a_new_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOrUpdateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_create_a_new_projection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Hybrid");
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_track_the_transaction_checkpoint()
+            {
+                long? checkpoint = Projector.GetLastCheckpoint();
+                checkpoint.Should().Be(transaction.Checkpoint);
+            }
+        }
+
+        public class When_an_event_requires_an_update_of_a_non_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_an_update_of_a_non_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    StartProjecting();
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_throw()
+            {
+                await Assert.ThrowsAsync<NHibernateProjectionException>(() =>
+                    The<MemoryEventSource>().Write(new ProductMovedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    }));
+            }
+        }
+
+        public class When_an_event_requires_an_update_of_an_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_an_update_of_an_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductMovedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_update_the_projection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Hybrid");
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_track_the_transaction_checkpoint()
+            {
+                long? checkpoint = Projector.GetLastCheckpoint();
+                checkpoint.Should().Be(transaction.Checkpoint);
+            }
+        }
+
+        public class When_an_event_requires_an_update_if_exists_of_a_non_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_an_update_if_exists_of_a_non_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateIfExistsOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_do_nothing()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+        }
+
+        public class When_an_event_requires_an_update_if_exists_of_an_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            private Transaction transaction;
+
+            public When_an_event_requires_an_update_if_exists_of_an_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateIfExistsOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    transaction = await The<MemoryEventSource>().Write(new ProductMovedToCatalogEvent
+                    {
+                        ProductKey = "c350E",
+                        Category = "Hybrid"
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_update_the_projection()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().NotBeNull();
+                    entry.Category.Should().Be("Hybrid");
+                }
+            }
+
+            [Fact]
+            public void Then_it_should_track_the_transaction_checkpoint()
+            {
+                long? checkpoint = Projector.GetLastCheckpoint();
+                checkpoint.Should().Be(transaction.Checkpoint);
+            }
+        }
+
+        public class When_an_event_requires_a_delete_of_an_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_a_delete_of_an_existing_projection()
             {
                 Given(() =>
                 {
@@ -245,6 +558,8 @@ namespace LiquidProjections.NHibernate.Specs
                     }
 
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(anEvent => anEvent.ProductKey);
+
+                    StartProjecting();
                 });
 
                 When(async () =>
@@ -269,14 +584,141 @@ namespace LiquidProjections.NHibernate.Specs
             }
         }
 
-        public class When_an_event_deletes_non_existing_projection :
+        public class When_an_event_requires_a_delete_of_a_non_existing_projection :
             Given_a_sqlite_projector_with_an_in_memory_event_source
         {
-            public When_an_event_deletes_non_existing_projection()
+            public When_an_event_requires_a_delete_of_a_non_existing_projection()
             {
                 Given(() =>
                 {
                     Events.Map<ProductDiscontinuedEvent>().AsDeleteOf(e => e.ProductKey);
+
+                    StartProjecting();
+                });
+            }
+
+            [Fact]
+            public Task Then_it_should_throw()
+            {
+                return Assert.ThrowsAsync<NHibernateProjectionException>(() =>
+                    The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
+                    {
+                        ProductKey = "c350E",
+                    }));
+            }
+        }
+
+        public class When_an_event_requires_a_delete_of_a_modified_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_a_delete_of_a_modified_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    Events.Map<ProductDiscontinuedEvent>()
+                        .AsDeleteOf(productDiscontinuedEvent => productDiscontinuedEvent.ProductKey);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    await The<MemoryEventSource>().Write(
+                        new ProductMovedToCatalogEvent
+                        {
+                            ProductKey = "c350E",
+                            Category = "Hybrids"
+                        }, new ProductDiscontinuedEvent
+                        {
+                            ProductKey = "c350E",
+                        });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public void Then_it_should_remove_the_projection()
+            {
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    var entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+        }
+
+        public class When_an_event_requires_a_delete_if_exists_of_an_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_a_delete_if_exists_of_an_existing_projection()
+            {
+                Given(() =>
+                {
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(new ProductCatalogEntry
+                        {
+                            Id = "c350E"
+                        });
+
+                        session.Flush();
+                    }
+
+                    Events.Map<ProductDiscontinuedEvent>().AsDeleteIfExistsOf(anEvent => anEvent.ProductKey);
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    await The<MemoryEventSource>().Write(new ProductDiscontinuedEvent
+                    {
+                        ProductKey = "c350E",
+                    });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public void Then_it_should_remove_the_projection()
+            {
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+        }
+
+        public class When_an_event_requires_a_delete_if_exists_of_a_non_existing_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_a_delete_if_exists_of_a_non_existing_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductDiscontinuedEvent>().AsDeleteIfExistsOf(e => e.ProductKey);
+
+                    StartProjecting();
                 });
 
                 When(async () =>
@@ -296,6 +738,63 @@ namespace LiquidProjections.NHibernate.Specs
                 using (ISession session = The<ISessionFactory>().OpenSession())
                 {
                     ProductCatalogEntry entry = session.Get<ProductCatalogEntry>("c350E");
+                    entry.Should().BeNull();
+                }
+            }
+        }
+
+        public class When_an_event_requires_a_delete_if_exists_of_a_modified_projection :
+            Given_a_sqlite_projector_with_an_in_memory_event_source
+        {
+            public When_an_event_requires_a_delete_if_exists_of_a_modified_projection()
+            {
+                Given(() =>
+                {
+                    Events.Map<ProductMovedToCatalogEvent>()
+                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
+
+                    Events.Map<ProductDiscontinuedEvent>()
+                        .AsDeleteIfExistsOf(productDiscontinuedEvent => productDiscontinuedEvent.ProductKey);
+
+                    var existingEntry = new ProductCatalogEntry
+                    {
+                        Id = "c350E",
+                        Category = "Gas"
+                    };
+
+                    using (ISession session = The<ISessionFactory>().OpenSession())
+                    {
+                        session.Save(existingEntry);
+                        session.Flush();
+                    }
+
+                    StartProjecting();
+                });
+
+                When(async () =>
+                {
+                    await The<MemoryEventSource>().Write(
+                        new ProductMovedToCatalogEvent
+                        {
+                            ProductKey = "c350E",
+                            Category = "Hybrids"
+                        }, new ProductDiscontinuedEvent
+                        {
+                            ProductKey = "c350E",
+                        });
+
+                    await DispatchedCheckpointSource.Task;
+                });
+            }
+
+            [Fact]
+            public void Then_it_should_remove_the_projection()
+            {
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    var entry = session.Get<ProductCatalogEntry>("c350E");
                     entry.Should().BeNull();
                 }
             }
@@ -332,6 +831,8 @@ namespace LiquidProjections.NHibernate.Specs
 
                         return Task.FromResult(false);
                     });
+
+                    StartProjecting();
                 });
 
                 When(async () =>
@@ -356,66 +857,13 @@ namespace LiquidProjections.NHibernate.Specs
             }
         }
 
-        public class When_a_modified_projection_must_be_deleted :
-            Given_a_sqlite_projector_with_an_in_memory_event_source
-        {
-            public When_a_modified_projection_must_be_deleted()
-            {
-                Given(() =>
-                {
-                    Events.Map<ProductMovedToCatalogEvent>()
-                        .AsUpdateOf(productMovedToCatalogEvent => productMovedToCatalogEvent.ProductKey)
-                        .Using((productCatalogEntry, productMovedToCatalogEvent, context) =>
-                                productCatalogEntry.Category = productMovedToCatalogEvent.Category);
-
-                    Events.Map<ProductDiscontinuedEvent>()
-                        .AsDeleteOf(productDiscontinuedEvent => productDiscontinuedEvent.ProductKey);
-
-                    var existingEntry = new ProductCatalogEntry
-                    {
-                        Id = "c350E",
-                        Category = "Gas"
-                    };
-
-                    using (ISession session = The<ISessionFactory>().OpenSession())
-                    {
-                        session.Save(existingEntry);
-                        session.Flush();
-                    }
-                });
-
-                When(async () =>
-                {
-                    await The<MemoryEventSource>().Write(
-                        new ProductMovedToCatalogEvent
-                        {
-                            ProductKey = "c350E",
-                            Category = "Hybrids"
-                        }, new ProductDiscontinuedEvent
-                        {
-                            ProductKey = "c350E",
-                        });
-
-                    await DispatchedCheckpointSource.Task;
-                });
-            }
-
-            [Fact]
-            public void Then_it_should_remove_the_projection()
-            {
-                using (ISession session = The<ISessionFactory>().OpenSession())
-                {
-                    var entry = session.Get<ProductCatalogEntry>("c350E");
-                    entry.Should().BeNull();
-                }
-            }
-        }
-
         public class When_an_event_is_not_mapped_at_all :
             Given_a_sqlite_projector_with_an_in_memory_event_source
         {
             public When_an_event_is_not_mapped_at_all()
             {
+                Given(() => StartProjecting());
+
                 When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
@@ -457,8 +905,17 @@ namespace LiquidProjections.NHibernate.Specs
 
                     var events = new EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext>();
 
+                    events.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
+                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
+                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
+
                     projector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
-                        database.SessionFactory.OpenSession, events, batchSize: 10, stateKey: "CatalogEntries");
+                        database.SessionFactory.OpenSession, events)
+                    {
+                        BatchSize = 10,
+                        StateKey = "CatalogEntries"
+                    };
 
                     var dispatcher = new Dispatcher(The<MemoryEventSource>());
 
@@ -467,11 +924,6 @@ namespace LiquidProjections.NHibernate.Specs
                         await projector.Handle(transactions);
                         dispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
                     });
-
-                    events.Map<ProductAddedToCatalogEvent>()
-                        .AsCreateOf(productAddedToCatalogEvent => productAddedToCatalogEvent.ProductKey)
-                        .Using((productCatalogEntry, productAddedToCatalogEvent, context) =>
-                                productCatalogEntry.Category = productAddedToCatalogEvent.Category);
                 });
 
                 When(async () =>
@@ -518,6 +970,8 @@ namespace LiquidProjections.NHibernate.Specs
                             projection.Category = anEvent.Category;
                             projection.AddedBy = (string)context.EventHeaders["UserName"];
                         });
+
+                    StartProjecting();
                 });
 
                 When(() => The<MemoryEventSource>().WriteWithHeaders(
@@ -557,6 +1011,8 @@ namespace LiquidProjections.NHibernate.Specs
                             projection.Category = anEvent.Category;
                             projection.AddedBy = (string)context.TransactionHeaders["UserName"];
                         });
+
+                    StartProjecting();
                 });
 
                 When(() => The<MemoryEventSource>().Write(
@@ -591,6 +1047,156 @@ namespace LiquidProjections.NHibernate.Specs
                 }
             }
         }
+
+        public class When_there_is_a_child_projector : GivenWhenThen
+        {
+            protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
+            private Transaction transaction2;
+            private readonly List<ChildProjectionState> childProjectionStates = new List<ChildProjectionState>();
+
+            public When_there_is_a_child_projector()
+            {
+                Given(() =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    UseThe(new InMemorySQLiteDatabaseBuilder().Build());
+                    UseThe(The<InMemorySQLiteDatabase>().SessionFactory);
+
+                    var parentMapBuilder = new EventMapBuilder<ProductCatalogEntry, string, NHibernateProjectionContext>();
+
+                    parentMapBuilder.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((entry, anEvent) => entry.Category = anEvent.Category);
+
+                    parentMapBuilder.Map<ProductAddedToCatalogEvent>().As((anEvent, context) =>
+                    {
+                        ProductCatalogChildEntry childEntry1 = context.Session.Get<ProductCatalogChildEntry>("c350E");
+                        ProductCatalogChildEntry childEntry2 = context.Session.Get<ProductCatalogChildEntry>("c350F");
+
+                        childProjectionStates.Add(new ChildProjectionState
+                        {
+                            Entry1Exists = childEntry1 != null,
+                            Entry2Exists = childEntry2 != null
+                        });
+                    });
+
+                    var childMapBuilder = new EventMapBuilder<ProductCatalogChildEntry, string, NHibernateProjectionContext>();
+
+                    childMapBuilder.Map<ProductAddedToCatalogEvent>()
+                        .AsCreateOf(anEvent => anEvent.ProductKey)
+                        .Using((entry, anEvent) => entry.Category = anEvent.Category);
+
+                    var childProjector = new NHibernateChildProjector<ProductCatalogChildEntry, string>(childMapBuilder);
+
+                    var parentProjector = new NHibernateProjector<ProductCatalogEntry, string, ProjectorState>(
+                        The<ISessionFactory>().OpenSession,
+                        parentMapBuilder,
+                        new[] { childProjector })
+                    {
+                        BatchSize = 10
+                    };
+
+                    var dispatcher = new Dispatcher(The<MemoryEventSource>());
+
+                    dispatcher.Subscribe(0, async transactions =>
+                    {
+                        await parentProjector.Handle(transactions);
+                        DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
+                    });
+                });
+
+                When(async () =>
+                {
+                    var transaction1 = new Transaction
+                    {
+                        Events = new[]
+                        {
+                            new EventEnvelope
+                            {
+                                Body = new ProductAddedToCatalogEvent
+                                {
+                                    ProductKey = "c350E",
+                                    Category = "Hybrid"
+                                }
+                            }
+                        }
+                    };
+
+                    transaction2 = new Transaction
+                    {
+                        Events = new[]
+                        {
+                            new EventEnvelope
+                            {
+                                Body = new ProductAddedToCatalogEvent
+                                {
+                                    ProductKey = "c350F",
+                                    Category = "Gas"
+                                }
+                            }
+                        }
+                    };
+
+                    await The<MemoryEventSource>().Write(transaction1, transaction2);
+                });
+            }
+
+            [Fact]
+            public async Task Then_the_parent_projector_should_project_all_the_transactions()
+            {
+                long lastCheckpoint = await DispatchedCheckpointSource.Task;
+                lastCheckpoint.Should().Be(transaction2.Checkpoint);
+
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogEntry parentEntry1 = session.Get<ProductCatalogEntry>("c350E");
+                    parentEntry1.Should().NotBeNull();
+                    parentEntry1.Category.Should().Be("Hybrid");
+
+                    ProductCatalogEntry parentEntry2 = session.Get<ProductCatalogEntry>("c350F");
+                    parentEntry2.Should().NotBeNull();
+                    parentEntry2.Category.Should().Be("Gas");
+                }
+            }
+
+            [Fact]
+            public void Then_the_child_projector_should_project_all_the_transactions()
+            {
+                using (ISession session = The<ISessionFactory>().OpenSession())
+                {
+                    ProductCatalogChildEntry childEntry1 = session.Get<ProductCatalogChildEntry>("c350E");
+                    childEntry1.Should().NotBeNull();
+                    childEntry1.Category.Should().Be("Hybrid");
+
+                    ProductCatalogChildEntry childEntry2 = session.Get<ProductCatalogChildEntry>("c350F");
+                    childEntry2.Should().NotBeNull();
+                    childEntry2.Category.Should().Be("Gas");
+                }
+            }
+
+            [Fact]
+            public void Then_the_child_projector_should_process_each_transaction_before_the_parent_projector()
+            {
+                childProjectionStates[0].ShouldBeEquivalentTo(new ChildProjectionState
+                {
+                    Entry1Exists = true,
+                    Entry2Exists = false
+                });
+
+                childProjectionStates[1].ShouldBeEquivalentTo(new ChildProjectionState
+                {
+                    Entry1Exists = true,
+                    Entry2Exists = true
+                });
+            }
+
+            private class ChildProjectionState
+            {
+                public bool Entry1Exists { get; set; }
+                public bool Entry2Exists { get; set; }
+            }
+        }
     }
 
     public class ProductCatalogEntry : IHaveIdentity<string>
@@ -607,6 +1213,21 @@ namespace LiquidProjections.NHibernate.Specs
             Id(p => p.Id).Not.Nullable().Length(100);
             Map(p => p.Category).Nullable().Length(100);
             Map(p => p.AddedBy).Nullable().Length(100);
+        }
+    }
+
+    public class ProductCatalogChildEntry : IHaveIdentity<string>
+    {
+        public virtual string Id { get; set; }
+        public virtual string Category { get; set; }
+    }
+
+    internal class ProductCatalogChildEntryClassMap : ClassMap<ProductCatalogChildEntry>
+    {
+        public ProductCatalogChildEntryClassMap()
+        {
+            Id(p => p.Id).Not.Nullable().Length(100);
+            Map(p => p.Category).Nullable().Length(100);
         }
     }
 

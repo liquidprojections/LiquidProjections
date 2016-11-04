@@ -51,7 +51,7 @@ namespace LiquidProjections.ExampleHost
 
         public override string ToString()
         {
-            return string.Format("Id: {0}, Kind:{1} State:{2}", Id, Kind, State);
+            return $"Id: {Id}, Kind:{Kind} State:{State}";
         }
     }
 

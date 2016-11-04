@@ -1,5 +1,4 @@
-﻿using System;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
@@ -12,9 +11,8 @@ namespace LiquidProjections
     public interface IEventMap<in TContext>
     {
         /// <summary>
-        /// Gets an asynchronous handler for <paramref name="event"/> or <c>null</c> if no handler
-        /// has been registered.
+        /// Handles <paramref name="anEvent"/> asynchronously.
         /// </summary>
-        Func<TContext, Task> GetHandler(object @event);
+        Task Handle(object anEvent, TContext context);
     }
 }

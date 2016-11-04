@@ -3,20 +3,23 @@ using System.Runtime.Serialization;
 
 namespace LiquidProjections.RavenDB
 {
+    /// <summary>
+    /// An exception describing an unrecoverable error in a projector.
+    /// </summary>
     [Serializable]
-    public class RavenProjectorException : Exception
+    public class RavenProjectionException : Exception
     {
-        internal RavenProjectorException(string message)
+        internal RavenProjectionException(string message)
             : base(message)
         {
         }
 
-        internal RavenProjectorException(string message, Exception inner)
+        internal RavenProjectionException(string message, Exception inner)
             : base(message, inner)
         {
         }
 
-        protected RavenProjectorException(
+        protected RavenProjectionException(
             SerializationInfo info,
             StreamingContext context) : base(info, context)
         {

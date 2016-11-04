@@ -57,9 +57,12 @@
   <ItemGroup>
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="IHaveIdentity.cs" />
+    <Compile Include="INHibernateChildProjector.cs" />
     <Compile Include="IProjectorState.cs" />
     <Compile Include="ITrackingState.cs" />
-    <Compile Include="NHibernateProjectorException.cs" />
+    <Compile Include="NHibernateChildProjector.cs" />
+    <Compile Include="NHibernateEventMapConfigurator.cs" />
+    <Compile Include="NHibernateProjectionException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="NHibernateProjectionContext.cs" />
     <Compile Include="NHibernateProjector.cs" />

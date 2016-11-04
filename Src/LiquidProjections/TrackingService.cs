@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
@@ -8,6 +9,11 @@ namespace LiquidProjections
 
         public TrackingService(ITrackingStore store)
         {
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
             this.store = store;
         }
 
