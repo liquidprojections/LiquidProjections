@@ -96,8 +96,6 @@ namespace LiquidProjections.RavenDB
                 cache.Remove(databaseId);
             });
 
-            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
-
             map = eventMapBuilder.Build();
         }
 

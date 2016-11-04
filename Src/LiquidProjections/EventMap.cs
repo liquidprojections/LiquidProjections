@@ -4,17 +4,9 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
-    public class EventMap<TProjection, TKey, TContext> : IEventMap<TContext>
+    public class EventMap<TContext> : IEventMap<TContext>
     {
         private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
-
-        internal CreateHandler<TKey, TContext, TProjection> Create { get; set; }
-
-        internal UpdateHandler<TKey, TContext, TProjection> Update { get; set; }
-
-        internal DeleteHandler<TKey, TContext> Delete { get; set; }
-
-        internal CustomHandler<TContext> Do { get; set; }
 
         internal void Add<TEvent>(Func<TEvent, TContext, Task> action)
         {
@@ -61,5 +53,14 @@ namespace LiquidProjections
                 return ctx => projector((TEvent)@event, ctx);
             }
         }
+    }
+
+    public class EventMap<TProjection, TKey, TContext> : EventMap<TContext>
+    {
+        internal CreateHandler<TKey, TContext, TProjection> Create { get; set; }
+
+        internal UpdateHandler<TKey, TContext, TProjection> Update { get; set; }
+
+        internal DeleteHandler<TKey, TContext> Delete { get; set; }
     }
 }

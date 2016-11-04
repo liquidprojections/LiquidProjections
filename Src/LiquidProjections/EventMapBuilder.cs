@@ -10,7 +10,14 @@ namespace LiquidProjections
     /// </summary>
     public class EventMapBuilder<TProjection, TKey, TContext> : IEventMapBuilder<TProjection, TKey, TContext>
     {
-        private readonly EventMap<TProjection, TKey, TContext> eventMap = new EventMap<TProjection, TKey, TContext>();
+        private readonly EventMap<TProjection, TKey, TContext> eventMap;
+        private readonly EventMapBuilder<TContext> innerBuilder;
+
+        public EventMapBuilder()
+        {
+            eventMap = new EventMap<TProjection, TKey, TContext>();
+            innerBuilder = new EventMapBuilder<TContext>(eventMap);
+        }
 
         public EventMappingBuilder<TEvent> Map<TEvent>()
         {
@@ -32,29 +39,20 @@ namespace LiquidProjections
             eventMap.Delete = handler;
         }
 
-        public void HandleCustomActionsAs(CustomHandler<TContext> handler)
-        {
-            eventMap.Do = handler;
-        }
-
-        public IEventMap<TContext> Build()
-        {
-            return eventMap;
-        }
-
         public class EventMappingBuilder<TEvent>
         {
             private readonly EventMap<TProjection, TKey, TContext> eventMap;
-            private readonly List<Func<TEvent, bool>> predicates = new List<Func<TEvent, bool>>();
+            private readonly EventMapBuilder<TContext>.EventMappingBuilder<TEvent> innerBuilder;
 
             public EventMappingBuilder(EventMap<TProjection, TKey, TContext> eventMap)
             {
                 this.eventMap = eventMap;
+                innerBuilder = new EventMapBuilder<TContext>.EventMappingBuilder<TEvent>(eventMap);
             }
 
             public EventMappingBuilder<TEvent> When(Func<TEvent, bool> predicate)
             {
-                predicates.Add(predicate);
+                innerBuilder.When(predicate);
                 return this;
             }
 
@@ -62,7 +60,7 @@ namespace LiquidProjections
             {
                 return new CreateActionBuilder<TEvent>(projector =>
                 {
-                    Add((@event, ctx) => eventMap.Create(selector(@event), ctx,
+                    innerBuilder.Add((@event, ctx) => eventMap.Create(selector(@event), ctx,
                         (projection, innerCtx) => projector(projection, @event, innerCtx)));
                 });
             }
@@ -71,36 +69,24 @@ namespace LiquidProjections
             {
                 return new UpdateActionBuilder<TEvent>(projector =>
                 {
-                    Add((@event, ctx) => eventMap.Update(selector(@event), ctx,
+                    innerBuilder.Add((@event, ctx) => eventMap.Update(selector(@event), ctx,
                         (projection, innerCtx) => projector(projection, @event, innerCtx)));
                 });
             }
 
             public void AsDeleteOf(Func<TEvent, TKey> selector)
             {
-                Add((@event, ctx) => eventMap.Delete(selector(@event), ctx));
+                innerBuilder.Add((@event, ctx) => eventMap.Delete(selector(@event), ctx));
             }
 
             public void As(Func<TEvent, TContext, Task> action)
             {
-                Add((@event, ctx) => eventMap.Do(ctx, innerCtx => action(@event, innerCtx)));
+                innerBuilder.As(action);
             }
 
             public void As(Action<TEvent, TContext> action)
             {
-                As((anEvent, context) =>
-                {
-                    action(anEvent, context);
-                    return Task.FromResult(0);
-                });
-            }
-
-            private void Add(Func<TEvent, TContext, Task> action)
-            {
-                eventMap.Add<TEvent>((@event, ctx) =>
-                {
-                    return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
-                });
+                innerBuilder.As(action);
             }
         }
 
@@ -149,6 +135,77 @@ namespace LiquidProjections
             public void Using(Func<TProjection, TEvent, TContext, Task> projector)
             {
                 action(projector);
+            }
+        }
+
+        public IEventMap<TContext> Build()
+        {
+            return innerBuilder.Build();
+        }
+    }
+    
+    /// <summary>
+    /// Allows mapping events to custom actions in a fluent fashion. 
+    /// </summary>
+    public class EventMapBuilder<TContext> : IEventMapBuilder<TContext>
+    {
+        private readonly EventMap<TContext> eventMap;
+
+        public EventMapBuilder() : this(new EventMap<TContext>())
+        {
+        }
+
+        public EventMapBuilder(EventMap<TContext> eventMap)
+        {
+            this.eventMap = eventMap;
+        }
+
+        public EventMappingBuilder<TEvent> Map<TEvent>()
+        {
+            return new EventMappingBuilder<TEvent>(eventMap);
+        }
+
+        public IEventMap<TContext> Build()
+        {
+            return eventMap;
+        }
+
+        public class EventMappingBuilder<TEvent>
+        {
+            private readonly EventMap<TContext> eventMap;
+            private readonly List<Func<TEvent, bool>> predicates = new List<Func<TEvent, bool>>();
+
+            public EventMappingBuilder(EventMap<TContext> eventMap)
+            {
+                this.eventMap = eventMap;
+            }
+
+            public EventMappingBuilder<TEvent> When(Func<TEvent, bool> predicate)
+            {
+                predicates.Add(predicate);
+                return this;
+            }
+
+            public void As(Func<TEvent, TContext, Task> action)
+            {
+                Add(action);
+            }
+
+            public void As(Action<TEvent, TContext> action)
+            {
+                As((anEvent, context) =>
+                {
+                    action(anEvent, context);
+                    return Task.FromResult(0);
+                });
+            }
+
+            internal void Add(Func<TEvent, TContext, Task> action)
+            {
+                eventMap.Add<TEvent>((@event, ctx) =>
+                {
+                    return predicates.All(p => p(@event)) ? action(@event, ctx) : Task.FromResult(0);
+                });
             }
         }
     }
