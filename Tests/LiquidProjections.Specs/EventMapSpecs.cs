@@ -175,6 +175,8 @@ namespace LiquidProjections.Specs
                 Given(() =>
                 {
                     var mapBuilder = new EventMapBuilder<object>();
+                    mapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
+
                     mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
                     {
                         involvedKey = @event.ProductKey;
@@ -266,6 +268,8 @@ namespace LiquidProjections.Specs
                 Given(() =>
                 {
                     var mapBuilder = new EventMapBuilder<object>();
+                    mapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
+
                     mapBuilder.Map<ProductAddedToCatalogEvent>()
                         .When(e => e.Category == "Hybrids")
                         .As((e, ctx) =>
@@ -335,12 +339,19 @@ namespace LiquidProjections.Specs
         {
             private string involvedKey;
             private IEventMap<ProjectionContext> map;
+            private bool customActionDecoratorExecuted;
 
             public When_an_event_is_mapped_as_a_custom_action_on_a_projection()
             {
                 Given(() =>
                 {
                     var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+                    mapBuilder.HandleCustomActionsAs((context, projector) =>
+                    {
+                        customActionDecoratorExecuted = true;
+                        return projector(context);
+                    });
+
                     mapBuilder.Map<ProductDiscontinuedEvent>().As((@event, context) =>
                     {
                         involvedKey = @event.ProductKey;
@@ -366,6 +377,12 @@ namespace LiquidProjections.Specs
             public void It_should_properly_pass_the_mapping_to_the_custom_handler()
             {
                 involvedKey.Should().Be("c350E");
+            }
+
+            [Fact]
+            public void It_should_allow_decorating_the_custom_handler()
+            {
+                customActionDecoratorExecuted.Should().BeTrue();
             }
         }
 
