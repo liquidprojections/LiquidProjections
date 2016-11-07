@@ -41,7 +41,6 @@ namespace LiquidProjections.Specs
         {
             private string discontinuedCategory;
             private ProjectionContext context;
-            private long checkpoint;
 
             public When_an_event_requires_a_custom_action()
             {

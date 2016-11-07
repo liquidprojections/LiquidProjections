@@ -3,9 +3,11 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
-    public interface IEventMapBuilder<in TContext>
+    public interface IEventMapBuilder<TContext>
     {
         IEventMap<TContext> Build();
+
+        void HandleCustomActionsAs(CustomHandler<TContext> handler);
     }
 
     public interface IEventMapBuilder<in TProjection, out TKey, TContext> : IEventMapBuilder<TContext>
@@ -28,4 +30,6 @@ namespace LiquidProjections
         Func<TProjection, TContext, Task> projector);
 
     public delegate Task DeleteHandler<in TKey, in TContext>(TKey key, TContext context);
+
+    public delegate Task CustomHandler<TContext>(TContext context, Func<TContext, Task> projector);
 }

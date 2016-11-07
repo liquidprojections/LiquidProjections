@@ -10,7 +10,13 @@ namespace LiquidProjections
 
         public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder)
         {
+            SetupHandlers(eventMapBuilder);
             map = eventMapBuilder.Build();
+        }
+
+        private void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
+        {
+            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
         }
 
         /// <summary>

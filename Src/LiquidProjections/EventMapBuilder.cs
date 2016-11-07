@@ -39,6 +39,11 @@ namespace LiquidProjections
             eventMap.Delete = handler;
         }
 
+        public void HandleCustomActionsAs(CustomHandler<TContext> handler)
+        {
+            innerBuilder.HandleCustomActionsAs(handler);
+        }
+
         public class EventMappingBuilder<TEvent>
         {
             private readonly EventMap<TProjection, TKey, TContext> eventMap;
@@ -165,6 +170,11 @@ namespace LiquidProjections
             return new EventMappingBuilder<TEvent>(eventMap);
         }
 
+        public void HandleCustomActionsAs(CustomHandler<TContext> handler)
+        {
+            eventMap.Do = handler;
+        }
+
         public IEventMap<TContext> Build()
         {
             return eventMap;
@@ -188,7 +198,7 @@ namespace LiquidProjections
 
             public void As(Func<TEvent, TContext, Task> action)
             {
-                Add(action);
+                Add((@event, ctx) => eventMap.Do(ctx, innerCtx => action(@event, innerCtx)));
             }
 
             public void As(Action<TEvent, TContext> action)

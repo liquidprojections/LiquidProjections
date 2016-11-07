@@ -8,6 +8,8 @@ namespace LiquidProjections
     {
         private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
 
+        internal CustomHandler<TContext> Do { get; set; }
+
         internal void Add<TEvent>(Func<TEvent, TContext, Task> action)
         {
             if (!mappings.ContainsKey(typeof(TEvent)))

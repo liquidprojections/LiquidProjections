@@ -63,6 +63,8 @@ namespace LiquidProjections.NHibernate
 
                 return Task.FromResult(false);
             });
+
+            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
         }
 
         /// <summary>
