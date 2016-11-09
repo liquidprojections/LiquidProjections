@@ -18,7 +18,7 @@ namespace LiquidProjections
             this.eventStore = eventStore;
         }
 
-        public void Subscribe(long checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public void Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
             if (handler == null)
             {
