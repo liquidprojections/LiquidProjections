@@ -32,7 +32,7 @@ namespace LiquidProjections.ExampleHost
 
         public async Task Start()
         {
-            long lastCheckpoint = await documentProjector.GetLastCheckpoint() ?? 0;
+            long? lastCheckpoint = await documentProjector.GetLastCheckpoint();
 
             stopwatch.Start();
 
