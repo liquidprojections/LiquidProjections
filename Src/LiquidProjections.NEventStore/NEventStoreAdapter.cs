@@ -8,7 +8,7 @@ using NEventStore.Persistence;
 
 namespace LiquidProjections.NEventStore
 {
-    public class NEventStoreAdapter : IEventStore
+    public class NEventStoreAdapter : IEventStore, IDisposable
     {
         private readonly TimeSpan pollInterval;
         private readonly int maxPageSize;
