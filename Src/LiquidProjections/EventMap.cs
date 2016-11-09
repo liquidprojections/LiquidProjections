@@ -4,9 +4,12 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections
 {
+    /// <summary>
+    /// Routes events to their configured handlers using context <typeparamref name="TContext"/>.
+    /// </summary>
     public class EventMap<TContext> : IEventMap<TContext>
     {
-        private readonly Dictionary<Type, List<GetHandlerFor>> mappings = new Dictionary<Type, List<GetHandlerFor>>();
+        private readonly Dictionary<Type, List<Handler>> mappings = new Dictionary<Type, List<Handler>>();
 
         internal CustomHandler<TContext> Do { get; set; }
 
@@ -14,55 +17,40 @@ namespace LiquidProjections
         {
             if (!mappings.ContainsKey(typeof(TEvent)))
             {
-                mappings[typeof(TEvent)] = new List<GetHandlerFor>();
+                mappings[typeof(TEvent)] = new List<Handler>();
             }
 
-            mappings[typeof(TEvent)].Add(@event => new HandlerWrapper<TEvent>(action).GetHandler(@event));
+            mappings[typeof(TEvent)].Add((@event, context) => action((TEvent)@event, context));
         }
 
         /// <summary>
-        /// Gets an asynchronous handler for <paramref name="event"/> or <c>null</c> if no handler
-        /// has been registered.
+        /// Handles <paramref name="anEvent"/> asynchronously using context <paramref name="context"/>.
         /// </summary>
-        public Func<TContext, Task> GetHandler(object @event)
+        public async Task Handle(object anEvent, TContext context)
         {
-            Type key = @event.GetType();
-            GetHandlerFor[] handlerWrappers = mappings.ContainsKey(key) ? mappings[key].ToArray() : new GetHandlerFor[0];
-
-            return async ctx =>
+            if (anEvent == null)
             {
-                foreach (GetHandlerFor wrapper in handlerWrappers)
+                throw new ArgumentNullException(nameof(anEvent));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            Type key = anEvent.GetType();
+
+            List<Handler> handlers;
+
+            if (mappings.TryGetValue(key, out handlers))
+            {
+                foreach (Handler handler in handlers)
                 {
-                    Func<TContext, Task> handler = wrapper(@event);
-                    await handler(ctx);
+                    await handler(anEvent, context);
                 }
-            };
-        }
-
-        private delegate Func<TContext, Task> GetHandlerFor(object @event);
-
-        private class HandlerWrapper<TEvent>
-        {
-            private readonly Func<TEvent, TContext, Task> projector;
-
-            public HandlerWrapper(Func<TEvent, TContext, Task> projector)
-            {
-                this.projector = projector;
-            }
-
-            public Func<TContext, Task> GetHandler(object @event)
-            {
-                return ctx => projector((TEvent)@event, ctx);
             }
         }
-    }
 
-    public class EventMap<TProjection, TKey, TContext> : EventMap<TContext>
-    {
-        internal CreateHandler<TKey, TContext, TProjection> Create { get; set; }
-
-        internal UpdateHandler<TKey, TContext, TProjection> Update { get; set; }
-
-        internal DeleteHandler<TKey, TContext> Delete { get; set; }
+        private delegate Task Handler(object @event, TContext context);
     }
 }

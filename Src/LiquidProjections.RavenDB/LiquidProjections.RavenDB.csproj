@@ -59,13 +59,16 @@
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="IProjectionCache.cs" />
+    <Compile Include="IRavenChildProjector.cs" />
     <Compile Include="LruProjectionCache.cs" />
     <Compile Include="PassthroughCache.cs" />
     <Compile Include="ProjectorState.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RavenChildProjector.cs" />
+    <Compile Include="RavenEventMapConfigurator.cs" />
     <Compile Include="RavenProjectionContext.cs" />
     <Compile Include="RavenProjector.cs" />
-    <Compile Include="RavenProjectorException.cs" />
+    <Compile Include="RavenProjectionException.cs" />
     <Compile Include="RavenTrackingStore.cs" />
   </ItemGroup>
   <ItemGroup>

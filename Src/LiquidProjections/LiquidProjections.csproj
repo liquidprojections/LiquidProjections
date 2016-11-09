@@ -51,18 +51,24 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\..\SharedAssemblyInfo.cs">
-      <Link>SharedAssemblyInfo.cs</Link>
+      <Link>Properties\SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="EventMap.cs" />
     <Compile Include="EventMapBuilder.cs" />
     <Compile Include="Dispatcher.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="EventEnvelope.cs" />
+    <Compile Include="MapBuilding\ICreateEventActionBuilder.cs" />
+    <Compile Include="MapBuilding\ICreateIfDoesNotExistEventActionBuilder.cs" />
     <Compile Include="IEventMap.cs" />
     <Compile Include="IEventMapBuilder.cs" />
+    <Compile Include="MapBuilding\IEventMappingBuilder.cs" />
     <Compile Include="IEventStore.cs" />
     <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />
+    <Compile Include="MapBuilding\IUpdateEventActionBuilder.cs" />
+    <Compile Include="MapBuilding\ICreateOrUpdateEventActionBuilder.cs" />
+    <Compile Include="MapBuilding\IUpdateIfExistsEventActionBuilder.cs" />
     <Compile Include="ProjectionContext.cs" />
     <Compile Include="Projector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -73,6 +79,7 @@
     <None Include=".nuspec" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

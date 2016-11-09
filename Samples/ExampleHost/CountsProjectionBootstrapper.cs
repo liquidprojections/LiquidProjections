@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using LiquidProjections.ExampleHost.Events;
 using LiquidProjections.RavenDB;
@@ -14,179 +13,242 @@ namespace LiquidProjections.ExampleHost
     {
         private readonly Dispatcher dispatcher;
         private readonly Func<IAsyncDocumentSession> sessionFactory;
-        private RavenProjector<DocumentCountProjection> projector;
         private readonly Stopwatch stopwatch = new Stopwatch();
         private long eventCount = 0;
         private long transactionCount = 0;
-        private readonly EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext> mapBuilder;
+        private RavenProjector<DocumentCountProjection> documentProjector;
+        private RavenChildProjector<CountryLookup> countryProjector;
+        private readonly LruProjectionCache cache;
 
         public CountsProjectionBootstrapper(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
         {
             this.dispatcher = dispatcher;
             this.sessionFactory = sessionFactory;
-            mapBuilder = BuildEventMap();
-        }   
+            cache = new LruProjectionCache(20000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2), () => DateTime.UtcNow);
+
+            BuildCountryProjector();
+            BuildDocumentProjector();
+        }
 
         public async Task Start()
         {
-            var lruCache = new LruProjectionCache<DocumentCountProjection>(20000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2),
-                () => DateTime.Now);
-
-            projector = new RavenProjector<DocumentCountProjection>(sessionFactory, mapBuilder, batchSize: 20, cache: lruCache);
-
-            long lastCheckpoint = await projector.GetLastCheckpoint() ?? 0;
+            long lastCheckpoint = await documentProjector.GetLastCheckpoint() ?? 0;
 
             stopwatch.Start();
 
             dispatcher.Subscribe(lastCheckpoint, async transactions =>
             {
-                await projector.Handle(transactions);
+                await documentProjector.Handle(transactions);
 
                 transactionCount += transactions.Count;
                 eventCount += transactions.Sum(t => t.Events.Count);
 
                 long elapsedTotalSeconds = (long)stopwatch.Elapsed.TotalSeconds;
+
                 if ((transactionCount % 100 == 0) && (elapsedTotalSeconds > 0))
                 {
                     int ratePerSecond = (int)(eventCount / elapsedTotalSeconds);
 
-                    Console.WriteLine(
-                        $"{DateTime.Now}: Processed {eventCount} events (rate: {ratePerSecond}/second, hits: {lruCache.Hits}, Misses: {lruCache.Misses})");
+                    Console.WriteLine($"{DateTime.Now}: Processed {eventCount} events " +
+                        $"(rate: {ratePerSecond}/second, hits: {cache.Hits}, Misses: {cache.Misses})");
                 }
             });
         }
 
-        private static EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext> BuildEventMap()
+        private void BuildDocumentProjector()
         {
-            var map = new EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext>();
+            var documentMapBuilder = new EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext>();
 
-            map.Map<CountryRegisteredEvent>().As(async (e, ctx) =>
-            {
-                await ctx.Session.StoreAsync(new CountryLookup
+            documentMapBuilder
+                .Map<WarrantAssignedEvent>()
+                .AsCreateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
                 {
-                    Id = e.Code,
-                    Name = e.Name
+                    document.Type = "Warrant";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
                 });
-            });
 
-            map.Map<WarrantAssignedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "Warrant";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
+            documentMapBuilder
+                .Map<CertificateIssuedEvent>()
+                .AsCreateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
+                {
+                    document.Type = "Certificate";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
+                });
 
-            map.Map<CertificateIssuedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "Certificate";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
+            documentMapBuilder
+                .Map<ConstitutionEstablishedEvent>()
+                .AsUpdateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
+                {
+                    document.Type = "Constitution";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
+                });
 
-            map.Map<ConstitutionEstablishedEvent>().AsUpdateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "Constitution";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
+            documentMapBuilder
+                .Map<LicenseGrantedEvent>()
+                .AsCreateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
+                {
+                    document.Type = "Audit";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
+                });
 
-            map.Map<LicenseGrantedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "Audit";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
+            documentMapBuilder
+                .Map<ContractNegotiatedEvent>()
+                .AsCreateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
+                {
+                    document.Type = "Task";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
+                });
 
-            map.Map<ContractNegotiatedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "Task";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
+            documentMapBuilder
+                .Map<BondIssuedEvent>()
+                .AsCreateOf(anEvent => anEvent.Number)
+                .Using((document, anEvent) =>
+                {
+                    document.Type = "IsolationCertificate";
+                    document.Kind = anEvent.Kind;
+                    document.Country = anEvent.Country;
+                    document.State = anEvent.InitialState;
+                });
 
-            map.Map<BondIssuedEvent>().AsCreateOf(e => e.Number).Using((p, e, ctx) =>
-            {
-                p.Type = "IsolationCertificate";
-                p.Kind = e.Kind;
-                p.Country = e.Country;
-                p.State = e.InitialState;
-            });
-
-            map
+            documentMapBuilder
                 .Map<AreaRestrictedEvent>()
-                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.RestrictedArea = e.Area);
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.RestrictedArea = anEvent.Area);
 
-            map
+            documentMapBuilder
                 .Map<AreaRestrictionCancelledEvent>()
-                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.RestrictedArea = null);
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.RestrictedArea = null);
 
-            map.Map<StateTransitionedEvent>()
-                .When(e => e.State != "Closed")
-                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.State = e.State);
+            documentMapBuilder
+                .Map<StateTransitionedEvent>()
+                .When(anEvent => anEvent.State != "Closed")
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.State = anEvent.State);
 
-            map.Map<StateRevertedEvent>()
-                .AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => { p.State = e.State; });
+            documentMapBuilder
+                .Map<StateRevertedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.State = anEvent.State);
 
-            map.Map<DocumentArchivedEvent>().AsDeleteOf(e => e.DocumentNumber);
+            documentMapBuilder
+                .Map<DocumentArchivedEvent>()
+                .AsDeleteOf(anEvent => anEvent.DocumentNumber);
 
-            map.Map<CountryCorrectedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) => p.Country = e.Country);
+            documentMapBuilder
+                .Map<CountryCorrectedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.Country = anEvent.Country);
 
-            map.Map<NextReviewScheduledEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
-                (p, e, ctx) => p.NextReviewAt = e.NextReviewAt);
+            documentMapBuilder
+                .Map<NextReviewScheduledEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.NextReviewAt = anEvent.NextReviewAt);
 
-            map.Map<LifetimeRestrictedEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
-                (p, e, ctx) => p.LifetimePeriodEnd = e.PeriodEnd);
+            documentMapBuilder
+                .Map<LifetimeRestrictedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.LifetimePeriodEnd = anEvent.PeriodEnd);
 
-            map.Map<LifetimeRestrictionRemovedEvent>().AsUpdateOf(e => e.DocumentNumber).Using(
-                (p, e, ctx) => p.LifetimePeriodEnd = null);
+            documentMapBuilder
+                .Map<LifetimeRestrictionRemovedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) => document.LifetimePeriodEnd = null);
 
-            map.Map<ValidityPeriodPlannedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
+            documentMapBuilder
+                .Map<ValidityPeriodPlannedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) =>
+                {
+                    ValidityPeriod period = document.GetOrAddPeriod(anEvent.Sequence);
+                    period.From = anEvent.From;
+                    period.To = anEvent.To;
+                });
+
+            documentMapBuilder
+                .Map<ValidityPeriodResetEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) =>
+                {
+                    ValidityPeriod period = document.GetOrAddPeriod(anEvent.Sequence);
+                    period.From = null;
+                    period.To = null;
+                });
+
+            documentMapBuilder
+                .Map<ValidityPeriodApprovedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) =>
+                {
+                    ValidityPeriod period = document.GetOrAddPeriod(anEvent.Sequence);
+                    period.Status = "Valid";
+
+                    ValidityPeriod lastValidPeriod = document.Periods.LastOrDefault(aPeriod => aPeriod.Status == "Valid");
+
+                    ValidityPeriod[] contiguousPeriods = GetPreviousContiguousValidPeriods(document.Periods, lastValidPeriod)
+                        .OrderBy(x => x.Sequence).ToArray();
+
+                    document.StartDateTime = contiguousPeriods.Any() ? contiguousPeriods.First().From : DateTime.MinValue;
+                    document.EndDateTime = contiguousPeriods.Any() ? contiguousPeriods.Last().To : DateTime.MaxValue;
+                });
+
+            documentMapBuilder
+                .Map<ValidityPeriodClosedEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) =>
+                {
+                    ValidityPeriod period = document.GetOrAddPeriod(anEvent.Sequence);
+                    period.Status = "Closed";
+                    period.To = anEvent.ClosedAt;
+                });
+
+            documentMapBuilder
+                .Map<ValidityPeriodCanceledEvent>()
+                .AsUpdateOf(anEvent => anEvent.DocumentNumber)
+                .Using((document, anEvent) =>
+                {
+                    ValidityPeriod period = document.GetOrAddPeriod(anEvent.Sequence);
+                    period.Status = "Canceled";
+                });
+
+            documentProjector = new RavenProjector<DocumentCountProjection>(
+                sessionFactory,
+                documentMapBuilder,
+                new[] { countryProjector })
             {
-                var period = p.GetOrAddPeriod(e.Sequence);
-                period.From = e.From;
-                period.To = e.To;
-            });
+                BatchSize = 20,
+                Cache = cache
+            };
+        }
 
-            map.Map<ValidityPeriodResetEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
+        private void BuildCountryProjector()
+        {
+            var countryMapBuilder = new EventMapBuilder<CountryLookup, string, RavenProjectionContext>();
+
+            countryMapBuilder
+                .Map<CountryRegisteredEvent>()
+                .AsCreateOf(anEvent => anEvent.Code)
+                .Using((country, anEvent) => country.Name = anEvent.Name);
+
+            countryProjector = new RavenChildProjector<CountryLookup>(countryMapBuilder)
             {
-                var period = p.GetOrAddPeriod(e.Sequence);
-                period.From = null;
-                period.To = null;
-            });
-
-            map.Map<ValidityPeriodApprovedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
-            {
-                var period = p.GetOrAddPeriod(e.Sequence);
-                period.Status = "Valid";
-
-                var lastValidPeriod = p.Periods.LastOrDefault(x => x.Status == "Valid");
-
-                var contiguousPeriods = GetPreviousContiguousValidPeriods(p.Periods, lastValidPeriod)
-                    .OrderBy(x => x.Sequence).ToArray();
-
-                p.StartDateTime = contiguousPeriods.Any() ? contiguousPeriods.First().From : DateTime.MinValue;
-                p.EndDateTime = contiguousPeriods.Any() ? contiguousPeriods.Last().To : DateTime.MaxValue;
-            });
-
-            map.Map<ValidityPeriodClosedEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
-            {
-                var period = p.GetOrAddPeriod(e.Sequence);
-                period.Status = "Closed";
-                period.To = e.ClosedAt;
-            });
-
-            map.Map<ValidityPeriodCanceledEvent>().AsUpdateOf(e => e.DocumentNumber).Using((p, e, ctx) =>
-            {
-                var period = p.GetOrAddPeriod(e.Sequence);
-                period.Status = "Canceled";
-            });
-
-            return map;
+                Cache = cache
+            };
         }
 
         private static IEnumerable<ValidityPeriod> GetPreviousContiguousValidPeriods(List<ValidityPeriod> allPeriods,

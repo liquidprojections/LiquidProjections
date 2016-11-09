@@ -3,20 +3,23 @@ using System.Runtime.Serialization;
 
 namespace LiquidProjections.NHibernate
 {
+    /// <summary>
+    /// An exception describing an unrecoverable error in a projector.
+    /// </summary>
     [Serializable]
-    public class NHibernateProjectorException : Exception
+    public class NHibernateProjectionException : Exception
     {
-        internal NHibernateProjectorException(string message)
+        internal NHibernateProjectionException(string message)
             : base(message)
         {
         }
 
-        internal NHibernateProjectorException(string message, Exception inner)
+        internal NHibernateProjectionException(string message, Exception inner)
             : base(message, inner)
         {
         }
 
-        protected NHibernateProjectorException(
+        protected NHibernateProjectionException(
             SerializationInfo info,
             StreamingContext context) : base(info, context)
         {

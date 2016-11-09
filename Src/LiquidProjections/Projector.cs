@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
@@ -7,16 +8,28 @@ namespace LiquidProjections
     public class Projector
     {
         private readonly IEventMap<ProjectionContext> map;
+        private readonly IReadOnlyList<Projector> children;
 
-        public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder)
+        public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder, IEnumerable<Projector> children = null)
         {
+            if (eventMapBuilder == null)
+            {
+                throw new ArgumentNullException(nameof(eventMapBuilder));
+            }
+
             SetupHandlers(eventMapBuilder);
             map = eventMapBuilder.Build();
+            this.children = children?.ToList() ?? new List<Projector>();
+
+            if (this.children.Contains(null))
+            {
+                throw new ArgumentException("There is null child projector.", nameof(children));
+            }
         }
 
         private void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
         {
-            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector(context));
+            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector());
         }
 
         /// <summary>
@@ -34,23 +47,30 @@ namespace LiquidProjections
 
         private async Task ProjectTransaction(Transaction transaction)
         {
-            foreach (EventEnvelope @event in transaction.Events)
+            foreach (EventEnvelope eventEnvelope in transaction.Events)
             {
-                Func<ProjectionContext, Task> handler = map.GetHandler(@event.Body);
-
-                if (handler != null)
-                {
-                    await handler(new ProjectionContext
+                await ProjectEvent(
+                    eventEnvelope.Body,
+                    new ProjectionContext
                     {
                         TransactionId = transaction.Id,
                         StreamId = transaction.StreamId,
                         TimeStampUtc = transaction.TimeStampUtc,
                         Checkpoint = transaction.Checkpoint,
-                        EventHeaders = @event.Headers,
+                        EventHeaders = eventEnvelope.Headers,
                         TransactionHeaders = transaction.Headers
                     });
-                }
             }
+        }
+
+        private async Task ProjectEvent(object anEvent, ProjectionContext context)
+        {
+            foreach (Projector child in children)
+            {
+                await child.ProjectEvent(anEvent, context);
+            }
+
+            await map.Handle(anEvent, context);
         }
     }
 }
