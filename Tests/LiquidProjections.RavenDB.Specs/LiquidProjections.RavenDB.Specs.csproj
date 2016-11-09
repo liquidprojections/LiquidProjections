@@ -103,6 +103,10 @@
       <Project>{20506f22-9a20-4c07-b3df-163ca338030f}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
+    <ProjectReference Include="..\LiquidProjections.Specs\LiquidProjections.Specs.csproj">
+      <Project>{F52732CA-C925-4DF6-A477-F5F441869735}</Project>
+      <Name>LiquidProjections.Specs</Name>
+    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />

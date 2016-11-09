@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Chill;
 
 using FluentAssertions;
-
+using LiquidProjections.Specs;
 using Raven.Client;
 
 using Xunit;
