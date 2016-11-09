@@ -8,7 +8,7 @@ namespace LiquidProjections
     public class MemoryEventSource : IEventStore
     {
         private readonly int batchSize;
-        private static long lastCheckpoint;
+        private long lastCheckpoint;
 
         private readonly List<Subscriber> subscribers = new List<Subscriber>();
         private readonly List<Transaction> history = new List<Transaction>();
@@ -18,9 +18,10 @@ namespace LiquidProjections
             this.batchSize = batchSize;
         }
 
-        public IDisposable Subscribe(long? fromCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            var subscriber = new Subscriber(fromCheckpoint ?? 0, batchSize, handler);
+            lastCheckpoint = lastProcessedCheckpoint ?? 0;
+            var subscriber = new Subscriber(lastCheckpoint, batchSize, handler);
 
             subscribers.Add(subscriber);
 
@@ -60,6 +61,10 @@ namespace LiquidProjections
                 {
                     transaction.Checkpoint = (++lastCheckpoint);
                 }
+                else
+                {
+                    lastCheckpoint = transaction.Checkpoint;
+                }
 
                 history.Add(transaction);
             }
@@ -92,24 +97,23 @@ namespace LiquidProjections
 
     internal class Subscriber : IDisposable
     {
-        private readonly long fromCheckpoint;
+        private readonly long lastProcessedCheckpoint;
         private readonly int batchSize;
         private readonly Func<IReadOnlyList<Transaction>, Task> handler;
-        
-        public Subscriber(long fromCheckpoint, int batchSize, Func<IReadOnlyList<Transaction>, Task> handler)
+        private bool disposed = false;
+
+        public Subscriber(long lastProcessedCheckpoint, int batchSize, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            this.fromCheckpoint = fromCheckpoint;
+            this.lastProcessedCheckpoint = lastProcessedCheckpoint;
             this.batchSize = batchSize;
             this.handler = handler;
         }
 
-        public bool Disposed { get; private set; } = false;
-
         public async Task Send(IEnumerable<Transaction> transactions)
         {
-            if (!Disposed)
+            if (!disposed)
             {
-                foreach (var batch in transactions.Where(t => t.Checkpoint >= fromCheckpoint).InBatchesOf(batchSize))
+                foreach (var batch in transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).InBatchesOf(batchSize))
                 {
                     await handler(batch.ToList().AsReadOnly());
                 }
@@ -118,7 +122,7 @@ namespace LiquidProjections
 
         public void Dispose()
         {
-            Disposed = true;
+            disposed = true;
         }
     }
 }

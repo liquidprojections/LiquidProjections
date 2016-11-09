@@ -31,7 +31,7 @@ namespace LiquidProjections.Specs
 
                 var dispatcher = new Dispatcher(The<MemoryEventSource>());
 
-                dispatcher.Subscribe(0, async transactions =>
+                dispatcher.Subscribe(110, async transactions =>
                 {
                     await The<Projector>().Handle(transactions);
                     DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
