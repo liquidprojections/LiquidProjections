@@ -8,7 +8,7 @@ using Chill;
 using FluentAssertions;
 
 using FluentNHibernate.Mapping;
-
+using LiquidProjections.Specs;
 using NHibernate;
 using NHibernate.Linq;
 

@@ -56,7 +56,6 @@
     <Compile Include="EventMap.cs" />
     <Compile Include="EventMapBuilder.cs" />
     <Compile Include="Dispatcher.cs" />
-    <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="EventEnvelope.cs" />
     <Compile Include="MapBuilding\ICreateEventActionBuilder.cs" />
     <Compile Include="MapBuilding\ICreateIfDoesNotExistEventActionBuilder.cs" />
@@ -64,7 +63,6 @@
     <Compile Include="IEventMapBuilder.cs" />
     <Compile Include="MapBuilding\IEventMappingBuilder.cs" />
     <Compile Include="IEventStore.cs" />
-    <Compile Include="InMemoryEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />
     <Compile Include="MapBuilding\IUpdateEventActionBuilder.cs" />
     <Compile Include="MapBuilding\ICreateOrUpdateEventActionBuilder.cs" />
