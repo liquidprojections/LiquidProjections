@@ -34,7 +34,7 @@ namespace LiquidProjections.NHibernate
 
         Task INHibernateChildProjector.ProjectEvent(object anEvent, NHibernateProjectionContext context)
         {
-            return mapConfigurator.ProjectEvent(anEvent, context);
+            return mapConfigurator.Handle(anEvent, context);
         }
     }
 }

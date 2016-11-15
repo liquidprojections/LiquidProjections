@@ -20,10 +20,7 @@ namespace LiquidProjections.NHibernate
         where TProjection : class, IHaveIdentity<TKey>, new()
         where TState : class, IProjectorState, new()
     {
-        private readonly Func<ISession> sessionFactory;
-        private readonly NHibernateEventMapConfigurator<TProjection, TKey> mapConfigurator;
-        private int batchSize = 1;
-        private string stateKey = typeof(TProjection).Name;
+        private readonly NHibernateProjector<TState> innerProjector;
 
         /// <summary>
         /// Creates a new instance of <see cref="NHibernateProjector{TProjection,TKey,TState}"/>.
@@ -42,8 +39,68 @@ namespace LiquidProjections.NHibernate
             IEventMapBuilder<TProjection, TKey, NHibernateProjectionContext> mapBuilder,
             IEnumerable<INHibernateChildProjector> children = null)
         {
+            innerProjector = new NHibernateProjector<TState>(sessionFactory, new NHibernateEventMapConfigurator<TProjection, TKey>(mapBuilder, children));
+        }
+
+        /// <summary>
+        /// How many transactions should be processed together in one database transaction. Defaults to one.
+        /// </summary>
+        public int BatchSize
+        {
+            get { return innerProjector.BatchSize; }
+            set { innerProjector.BatchSize = value; }
+        }
+
+        /// <summary>
+        /// The key to store the projector state as <typeparamref name="TState"/>.
+        /// </summary>
+        public string StateKey
+        {
+            get { return innerProjector.StateKey; }
+            set { innerProjector.StateKey = value; }
+        }
+
+        /// <summary>
+        /// Instructs the projector to project a collection of ordered transactions asynchronously
+        /// in batches of the configured size <see cref="BatchSize"/>.
+        /// </summary>
+        public Task Handle(IReadOnlyList<Transaction> transactions)
+        {
+            return innerProjector.Handle(transactions);
+        }
+
+        /// <summary>
+        /// Determines the checkpoint of the last projected transaction.
+        /// </summary>
+        public long? GetLastCheckpoint()
+        {
+            return innerProjector.GetLastCheckpoint();
+        }
+    }
+
+
+    /// <summary>
+    /// Projects events using a custom mapping.
+    /// Keeps track of its own state stored in the database as <typeparamref name="TState"/>.
+    /// Uses context of type <see cref="NHibernateProjectionContext"/>.
+    /// Throws <see cref="NHibernateProjectionException"/> when it detects known errors in the event handlers.
+    /// </summary>
+    public sealed class NHibernateProjector<TState>
+        where TState : class, IProjectorState, new()
+    {
+        private readonly Func<ISession> sessionFactory;
+        private readonly IEventMap<NHibernateProjectionContext> eventMap;
+        private int batchSize = 1;
+        private string stateKey = string.Empty;
+
+        /// <summary>
+        /// Creates a new instance of <see cref="NHibernateProjector{TState}"/>.
+        /// </summary>
+        /// <param name="sessionFactory">The delegate that creates a new <see cref="ISession"/>.</param>
+        public NHibernateProjector(Func<ISession> sessionFactory, IEventMap<NHibernateProjectionContext> eventMap)
+        {
             this.sessionFactory = sessionFactory;
-            mapConfigurator = new NHibernateEventMapConfigurator<TProjection, TKey>(mapBuilder, children);
+            this.eventMap = eventMap;
         }
 
         /// <summary>
@@ -97,7 +154,7 @@ namespace LiquidProjections.NHibernate
                         await ProjectTransaction(transaction, session);
                     }
 
-                    StoreLastCheckpoint(session, batch.Last());
+                    StoreLastCheckpoint(session, batch.Last().Checkpoint);
                     session.Transaction.Commit();
                 }
             }
@@ -117,20 +174,7 @@ namespace LiquidProjections.NHibernate
                     TransactionHeaders = transaction.Headers
                 };
 
-                await mapConfigurator.ProjectEvent(eventEnvelope.Body, context);
-            }
-        }
-
-        private void StoreLastCheckpoint(ISession session, Transaction transaction)
-        {
-            TState existingState = session.Get<TState>(StateKey);
-            TState state = existingState ?? new TState { Id = StateKey };
-            state.Checkpoint = transaction.Checkpoint;
-            state.LastUpdateUtc = DateTime.UtcNow;
-
-            if (existingState == null)
-            {
-                session.Save(state);
+                await eventMap.Handle(eventEnvelope.Body, context);
             }
         }
 
@@ -142,6 +186,19 @@ namespace LiquidProjections.NHibernate
             using (var session = sessionFactory())
             {
                 return session.Get<TState>(StateKey)?.Checkpoint;
+            }
+        }
+
+        private void StoreLastCheckpoint(ISession session, long checkpoint)
+        {
+            TState existingState = session.Get<TState>(StateKey);
+            TState state = existingState ?? new TState { Id = StateKey };
+            state.Checkpoint = checkpoint;
+            state.LastUpdateUtc = DateTime.UtcNow;
+
+            if (existingState == null)
+            {
+                session.Save(state);
             }
         }
     }
