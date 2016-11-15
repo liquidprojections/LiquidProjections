@@ -12,7 +12,7 @@ namespace LiquidProjections.RavenDB
     /// Keeps track of its own state stored in RavenDB in RavenCheckpoints collection.
     /// Can also have child projectors of type <see cref="IRavenChildProjector"/> which project events
     /// in the same session just before the parent projector.
-    /// Throws <see cref="RavenProjectionException"/> when it detects known errors in the event handlers.
+    /// Throws <see cref="ProjectionException"/> when it detects errors in the event handlers.
     /// </summary>
     public class RavenProjector<TProjection>
         where TProjection : class, IHaveIdentity, new()
@@ -103,16 +103,40 @@ namespace LiquidProjections.RavenDB
 
             foreach (IList<Transaction> batch in transactions.InBatchesOf(batchSize))
             {
+                await ProjectTransactionBatch(batch).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ProjectTransactionBatch(IList<Transaction> batch)
+        {
+            try
+            {
                 using (IAsyncDocumentSession session = sessionFactory())
                 {
                     foreach (Transaction transaction in batch)
                     {
-                        await ProjectTransaction(transaction, session);
+                        await ProjectTransaction(transaction, session).ConfigureAwait(false);
                     }
 
-                    await StoreLastCheckpoint(session, batch.Last());
-                    await session.SaveChangesAsync();
+                    await StoreLastCheckpoint(session, batch.Last()).ConfigureAwait(false);
+                    await session.SaveChangesAsync().ConfigureAwait(false);
                 }
+            }
+            catch (ProjectionException projectionException)
+            {
+                projectionException.Projector = typeof(TProjection).ToString();
+                projectionException.SetTransactionBatch(batch);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                var projectionException = new ProjectionException("Projector failed to project transaction batch.", exception)
+                {
+                    Projector = typeof(TProjection).ToString()
+                };
+
+                projectionException.SetTransactionBatch(batch);
+                throw projectionException;
             }
         }
 
@@ -130,18 +154,42 @@ namespace LiquidProjections.RavenDB
                     TransactionHeaders = transaction.Headers
                 };
 
-                await mapConfigurator.ProjectEvent(eventEnvelope.Body, context);
+                try
+                {
+                    await mapConfigurator.ProjectEvent(eventEnvelope.Body, context).ConfigureAwait(false);
+                }
+                catch (ProjectionException projectionException)
+                {
+                    projectionException.TransactionId = transaction.Id;
+                    projectionException.CurrentEvent = eventEnvelope;
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new ProjectionException("Projector failed to project an event.", exception)
+                    {
+                        TransactionId = transaction.Id,
+                        CurrentEvent = eventEnvelope
+                    };
+                }
             }
         }
 
-        private Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
+        private async Task StoreLastCheckpoint(IAsyncDocumentSession session, Transaction transaction)
         {
-            return session.StoreAsync(new ProjectorState
+            try
             {
-                Id = GetCheckpointId(),
-                Checkpoint = transaction.Checkpoint,
-                LastUpdateUtc = DateTime.UtcNow
-            });
+                await session.StoreAsync(new ProjectorState
+                {
+                    Id = GetCheckpointId(),
+                    Checkpoint = transaction.Checkpoint,
+                    LastUpdateUtc = DateTime.UtcNow
+                }).ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                throw new ProjectionException("Projector failed to store last checkpoint.", exception);
+            }
         }
 
         /// <summary>
@@ -151,7 +199,7 @@ namespace LiquidProjections.RavenDB
         {
             using (IAsyncDocumentSession session = sessionFactory())
             {
-                var state = await session.LoadAsync<ProjectorState>(GetCheckpointId());
+                var state = await session.LoadAsync<ProjectorState>(GetCheckpointId()).ConfigureAwait(false);
                 return state?.Checkpoint;
             }
         }

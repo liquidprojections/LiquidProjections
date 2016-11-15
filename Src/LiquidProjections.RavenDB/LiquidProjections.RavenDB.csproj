@@ -68,7 +68,6 @@
     <Compile Include="RavenEventMapConfigurator.cs" />
     <Compile Include="RavenProjectionContext.cs" />
     <Compile Include="RavenProjector.cs" />
-    <Compile Include="RavenProjectionException.cs" />
     <Compile Include="RavenTrackingStore.cs" />
   </ItemGroup>
   <ItemGroup>

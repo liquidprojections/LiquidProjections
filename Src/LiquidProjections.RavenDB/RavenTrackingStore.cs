@@ -21,9 +21,9 @@ namespace LiquidProjections.RavenDB
                 {
                     Checkpoint = checkpoint,
                     LastUpdateUtc = DateTime.UtcNow,
-                }, "Checkpoint/" + projectorId);
+                }, "Checkpoint/" + projectorId).ConfigureAwait(false);
 
-                await session.SaveChangesAsync();
+                await session.SaveChangesAsync().ConfigureAwait(false);
             }
         }
 

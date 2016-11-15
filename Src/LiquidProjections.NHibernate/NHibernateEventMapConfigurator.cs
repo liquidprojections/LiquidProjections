@@ -45,7 +45,7 @@ namespace LiquidProjections.NHibernate
                     case MissingProjectionModificationBehavior.Create:
                     {
                         projection = new TProjection { Id = key };
-                        await projector(projection);
+                        await projector(projection).ConfigureAwait(false);
                         context.Session.Save(projection);
                         break;
                     }
@@ -57,7 +57,7 @@ namespace LiquidProjections.NHibernate
 
                     case MissingProjectionModificationBehavior.Throw:
                     {
-                        throw new NHibernateProjectionException(
+                        throw new ProjectionException(
                             $"Projection {typeof(TProjection)} with key {key} does not exist.");
                     }
 
@@ -74,7 +74,7 @@ namespace LiquidProjections.NHibernate
                 {
                     case ExistingProjectionModificationBehavior.Update:
                     {
-                        await projector(projection);
+                        await projector(projection).ConfigureAwait(false);
                         break;
                     }
 
@@ -85,7 +85,7 @@ namespace LiquidProjections.NHibernate
 
                     case ExistingProjectionModificationBehavior.Throw:
                     {
-                        throw new NHibernateProjectionException(
+                        throw new ProjectionException(
                             $"Projection {typeof(TProjection)} with key {key} already exists.");
                     }
 
@@ -114,7 +114,7 @@ namespace LiquidProjections.NHibernate
 
                     case MissingProjectionDeletionBehavior.Throw:
                     {
-                        throw new NHibernateProjectionException(
+                        throw new ProjectionException(
                             $"Cannot delete {typeof(TProjection)} projection with key {key}. The projection does not exist.");
                     }
 
@@ -137,10 +137,10 @@ namespace LiquidProjections.NHibernate
         {
             foreach (INHibernateChildProjector child in children)
             {
-                await child.ProjectEvent(anEvent, context);
+                await child.ProjectEvent(anEvent, context).ConfigureAwait(false);
             }
 
-            await map.Handle(anEvent, context);
+            await map.Handle(anEvent, context).ConfigureAwait(false);
         }
     }
 }

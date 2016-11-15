@@ -62,7 +62,6 @@
     <Compile Include="ITrackingState.cs" />
     <Compile Include="NHibernateChildProjector.cs" />
     <Compile Include="NHibernateEventMapConfigurator.cs" />
-    <Compile Include="NHibernateProjectionException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="NHibernateProjectionContext.cs" />
     <Compile Include="NHibernateProjector.cs" />

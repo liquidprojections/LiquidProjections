@@ -67,11 +67,11 @@ namespace LiquidProjections.RavenDB
             Func<TProjection, Task> projector, ProjectionModificationOptions options)
         {
             string databaseId = BuildDatabaseId(key);
-            var projection = (TProjection)await cache.TryGet(databaseId);
+            var projection = (TProjection)await cache.TryGet(databaseId).ConfigureAwait(false);
 
             if (projection == null)
             {
-                projection = await context.Session.LoadAsync<TProjection>(databaseId);
+                projection = await context.Session.LoadAsync<TProjection>(databaseId).ConfigureAwait(false);
 
                 if (projection != null)
                 {
@@ -86,9 +86,9 @@ namespace LiquidProjections.RavenDB
                     case MissingProjectionModificationBehavior.Create:
                     {
                         projection = new TProjection { Id = databaseId };
-                        await projector(projection);
+                        await projector(projection).ConfigureAwait(false);
                         cache.Add(projection);
-                        await context.Session.StoreAsync(projection);
+                        await context.Session.StoreAsync(projection).ConfigureAwait(false);
                         break;
                     }
 
@@ -99,7 +99,7 @@ namespace LiquidProjections.RavenDB
 
                     case MissingProjectionModificationBehavior.Throw:
                     {
-                        throw new RavenProjectionException($"Projection with id {databaseId} does not exist.");
+                        throw new ProjectionException($"Projection with id {databaseId} does not exist.");
                     }
 
                     default:
@@ -115,8 +115,8 @@ namespace LiquidProjections.RavenDB
                 {
                     case ExistingProjectionModificationBehavior.Update:
                     {
-                        await projector(projection);
-                        await context.Session.StoreAsync(projection);
+                        await projector(projection).ConfigureAwait(false);
+                        await context.Session.StoreAsync(projection).ConfigureAwait(false);
                         break;
                     }
 
@@ -127,7 +127,7 @@ namespace LiquidProjections.RavenDB
 
                     case ExistingProjectionModificationBehavior.Throw:
                     {
-                        throw new RavenProjectionException($"Projection with id {databaseId} already exists.");
+                        throw new ProjectionException($"Projection with id {databaseId} already exists.");
                     }
 
                     default:
@@ -147,9 +147,9 @@ namespace LiquidProjections.RavenDB
             // If the projection is already loaded, we have to delete it via the loaded instance.
             // If the projection is not cached, we have to load it to verify that it exists.
             // Otherwise we can delete fast by id without loading the projection.
-            if (context.Session.Advanced.IsLoaded(databaseId) || !await IsCached(databaseId))
+            if (context.Session.Advanced.IsLoaded(databaseId) || !await IsCached(databaseId).ConfigureAwait(false))
             {
-                TProjection projection = await context.Session.LoadAsync<TProjection>(databaseId);
+                TProjection projection = await context.Session.LoadAsync<TProjection>(databaseId).ConfigureAwait(false);
 
                 if (projection == null)
                 {
@@ -162,7 +162,7 @@ namespace LiquidProjections.RavenDB
 
                         case MissingProjectionDeletionBehavior.Throw:
                         {
-                            throw new RavenProjectionException(
+                            throw new ProjectionException(
                                 $"Cannot delete projection with id {databaseId}. The projection does not exist.");
                         }
 
@@ -198,7 +198,7 @@ namespace LiquidProjections.RavenDB
 
         private async Task<bool> IsCached(string databaseId)
         {
-            TProjection cachedProjection = (TProjection)await cache.TryGet(databaseId);
+            TProjection cachedProjection = (TProjection)await cache.TryGet(databaseId).ConfigureAwait(false);
             return cachedProjection != null;
         }
 
@@ -206,10 +206,10 @@ namespace LiquidProjections.RavenDB
         {
             foreach (IRavenChildProjector child in children)
             {
-                await child.ProjectEvent(anEvent, context);
+                await child.ProjectEvent(anEvent, context).ConfigureAwait(false);
             }
 
-            await map.Handle(anEvent, context);
+            await map.Handle(anEvent, context).ConfigureAwait(false);
         }
     }
 }

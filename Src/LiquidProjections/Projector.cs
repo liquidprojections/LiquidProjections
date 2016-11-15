@@ -49,17 +49,38 @@ namespace LiquidProjections
         {
             foreach (EventEnvelope eventEnvelope in transaction.Events)
             {
-                await ProjectEvent(
-                    eventEnvelope.Body,
-                    new ProjectionContext
+                try
+                {
+                    await ProjectEvent(
+                        eventEnvelope.Body,
+                        new ProjectionContext
+                        {
+                            TransactionId = transaction.Id,
+                            StreamId = transaction.StreamId,
+                            TimeStampUtc = transaction.TimeStampUtc,
+                            Checkpoint = transaction.Checkpoint,
+                            EventHeaders = eventEnvelope.Headers,
+                            TransactionHeaders = transaction.Headers
+                        });
+                }
+                catch (ProjectionException projectionException)
+                {
+                    projectionException.CurrentEvent = eventEnvelope;
+                    projectionException.TransactionId = transaction.Id;
+                    projectionException.SetTransactionBatch(new[] { transaction });
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    var projectionException = new ProjectionException("Projector failed to project an event.", exception)
                     {
-                        TransactionId = transaction.Id,
-                        StreamId = transaction.StreamId,
-                        TimeStampUtc = transaction.TimeStampUtc,
-                        Checkpoint = transaction.Checkpoint,
-                        EventHeaders = eventEnvelope.Headers,
-                        TransactionHeaders = transaction.Headers
-                    });
+                        CurrentEvent = eventEnvelope,
+                        TransactionId = transaction.Id
+                    };
+
+                    projectionException.SetTransactionBatch(new[] { transaction });
+                    throw projectionException;
+                }
             }
         }
 
@@ -70,6 +91,7 @@ namespace LiquidProjections
                 await child.ProjectEvent(anEvent, context);
             }
 
+            // There is no way to identify the child projector when an exception happens so we don't handle exceptions here.
             await map.Handle(anEvent, context);
         }
     }

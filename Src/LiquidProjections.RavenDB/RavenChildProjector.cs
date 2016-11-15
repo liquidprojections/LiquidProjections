@@ -7,7 +7,7 @@ namespace LiquidProjections.RavenDB
     /// <summary>
     /// Projects events to projections of type <typeparamref name="TProjection"/> stored in RavenDB
     /// just before the parent projector in the same session.
-    /// Throws <see cref="RavenProjectionException"/> when it detects known errors in the event handlers.
+    /// Throws <see cref="ProjectionException"/> when it detects errors in the event handlers.
     /// </summary>
     public class RavenChildProjector<TProjection> : IRavenChildProjector
         where TProjection : class, IHaveIdentity, new()
@@ -52,7 +52,7 @@ namespace LiquidProjections.RavenDB
             set { mapConfigurator.Cache = value; }
         }
 
-        Task IRavenChildProjector.ProjectEvent(object anEvent, RavenProjectionContext context)
+        async Task IRavenChildProjector.ProjectEvent(object anEvent, RavenProjectionContext context)
         {
             if (anEvent == null)
             {
@@ -64,7 +64,26 @@ namespace LiquidProjections.RavenDB
                 throw new ArgumentNullException(nameof(context));
             }
 
-            return mapConfigurator.ProjectEvent(anEvent, context);
+            try
+            {
+                await mapConfigurator.ProjectEvent(anEvent, context).ConfigureAwait(false);
+            }
+            catch (ProjectionException projectionException)
+            {
+                if (string.IsNullOrEmpty(projectionException.ChildProjector))
+                {
+                    projectionException.ChildProjector = typeof(TProjection).ToString();
+                }
+
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new ProjectionException("Projector failed to project an event.", exception)
+                {
+                    ChildProjector = typeof(TProjection).ToString()
+                };
+            }
         }
     }
 }

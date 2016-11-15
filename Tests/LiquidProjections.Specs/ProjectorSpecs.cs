@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Chill;
+using Chill.StateBuilders;
+
 using FluentAssertions;
 using Xunit;
 
@@ -10,9 +12,8 @@ namespace LiquidProjections.Specs
 {
     namespace ProjectorSpecs
     {
-        public class Given_a_projector_with_an_in_memory_event_source : GivenWhenThen
+        public class Given_a_projector_with_an_in_memory_event_source : GivenSubject<Projector>
         {
-            protected readonly TaskCompletionSource<long> DispatchedCheckpointSource = new TaskCompletionSource<long>();
             protected EventMapBuilder<ProjectionContext> Events;
 
             public Given_a_projector_with_an_in_memory_event_source()
@@ -20,27 +21,20 @@ namespace LiquidProjections.Specs
                 Given(() =>
                 {
                     UseThe(new MemoryEventSource());
-
                     Events = new EventMapBuilder<ProjectionContext>();
+
+                    // UseThe cannot be used here due to a bug in Chill.
+                    Container.Set<IEventMapBuilder<ProjectionContext>>(Events, string.Empty);
                 });
             }
 
             protected void StartProjecting()
             {
-                UseThe(new Projector(Events));
-
-                var dispatcher = new Dispatcher(The<MemoryEventSource>());
-
-                dispatcher.Subscribe(0, async transactions =>
-                {
-                    await The<Projector>().Handle(transactions);
-                    DispatchedCheckpointSource.SetResult(transactions.Last().Checkpoint);
-                });
+                The<MemoryEventSource>().Subscribe(0, Subject.Handle);
             }
         }
 
-        public class When_an_event_requires_a_custom_action :
-            Given_a_projector_with_an_in_memory_event_source
+        public class When_an_event_requires_a_custom_action : Given_a_projector_with_an_in_memory_event_source
         {
             private string discontinuedCategory;
             private ProjectionContext context;
@@ -53,8 +47,6 @@ namespace LiquidProjections.Specs
                     {
                         discontinuedCategory = @event.Category;
                         this.context = context;
-
-                        return Task.FromResult(false);
                     });
 
                     StartProjecting();
@@ -70,7 +62,7 @@ namespace LiquidProjections.Specs
                         TimeStampUtc = 10.April(1979).At(13, 14, 15),
                         Headers = new Dictionary<string, object>
                         {
-                            {"My custom header", "My custom header value"}
+                            ["My custom header"] = "My custom header value"
                         },
                         Events = new List<EventEnvelope>
                         {
@@ -79,6 +71,10 @@ namespace LiquidProjections.Specs
                                 Body = new CategoryDiscontinuedEvent
                                 {
                                     Category = "Hybrid"
+                                },
+                                Headers = new Dictionary<string, object>
+                                {
+                                    ["Some event header"] = "Some event header value"
                                 }
                             }
                         }
@@ -87,18 +83,14 @@ namespace LiquidProjections.Specs
             }
 
             [Fact]
-            public async Task Then_it_should_have_executed_the_custom_action()
+            public void Then_it_should_have_executed_the_custom_action()
             {
-                await DispatchedCheckpointSource.Task;
-
                 discontinuedCategory.Should().Be("Hybrid");
             }
 
             [Fact]
-            public async Task Then_it_should_have_created_the_context()
+            public void Then_it_should_have_created_the_context()
             {
-                await DispatchedCheckpointSource.Task;
-
                 context.ShouldBeEquivalentTo(new ProjectionContext
                 {
                     Checkpoint = 111,
@@ -107,120 +99,160 @@ namespace LiquidProjections.Specs
                     TimeStampUtc = 10.April(1979).At(13, 14, 15),
                     TransactionHeaders = new Dictionary<string, object>
                     {
-                        {"My custom header", "My custom header value"}
+                        ["My custom header"] = "My custom header value"
                     },
+                    EventHeaders = new Dictionary<string, object>
+                    {
+                        ["Some event header"] = "Some event header value"
+                    }
                 });
             }
         }
 
-        public class When_an_event_is_not_mapped_at_all :
-            Given_a_projector_with_an_in_memory_event_source
+        public class When_an_event_is_not_mapped_at_all : Given_a_projector_with_an_in_memory_event_source
         {
-            private Action action;
-
             public When_an_event_is_not_mapped_at_all()
             {
+                Given(() => StartProjecting());
+
                 When(async () =>
                 {
-                    await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent
-                    {
-                        ProductKey = "c350E",
-                        Category = "Hybrid"
-                    });
-
-                    action = async () => await DispatchedCheckpointSource.Task;
-
-                    StartProjecting();
-                });
+                    await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent());
+                }, deferedExecution: true);
             }
 
             [Fact]
             public void Then_it_should_not_fail()
             {
-                action.ShouldNotThrow();
+                WhenAction.ShouldNotThrow();
             }
         }
 
         public class When_an_event_has_a_header : Given_a_projector_with_an_in_memory_event_source
         {
-            readonly ProductCatalogEntry projection = new ProductCatalogEntry();
-
             public When_an_event_has_a_header()
             {
                 Given(() =>
                 {
-                    Events.Map<ProductAddedToCatalogEvent>()
-                        .As((anEvent, context) =>
-                        {
-                            projection.Category = anEvent.Category;
-                            projection.AddedBy = (string) context.EventHeaders["UserName"];
-                        });
+                    // Required due to a bug in Chill.
+                    UseThe(new ProductCatalogEntry());
+
+                    Events.Map<ProductAddedToCatalogEvent>().As((anEvent, context) =>
+                    {
+                        The<ProductCatalogEntry>().AddedBy = (string)context.EventHeaders["UserName"];
+                    });
 
                     StartProjecting();
                 });
 
-                When(() => The<MemoryEventSource>().WriteWithHeaders(
-                    new ProductAddedToCatalogEvent
-                    {
-                        ProductKey = "c350E",
-                        Category = "Hybrid"
-                    },
-                    new Dictionary<string, object>
-                    {
-                        ["UserName"] = "Pavel"
-                    }));
+                When(async () =>
+                {
+                    await The<MemoryEventSource>().WriteWithHeaders(
+                        new ProductAddedToCatalogEvent(),
+                        new Dictionary<string, object>
+                        {
+                            ["UserName"] = "Pavel"
+                        });
+                });
             }
 
             [Fact]
             public void Then_it_should_use_the_header()
             {
-                projection.AddedBy.Should().Be("Pavel");
+                The<ProductCatalogEntry>().AddedBy.Should().Be("Pavel");
             }
         }
 
         public class When_a_transaction_has_a_header : Given_a_projector_with_an_in_memory_event_source
         {
-            readonly ProductCatalogEntry projection = new ProductCatalogEntry();
-
             public When_a_transaction_has_a_header()
             {
                 Given(() =>
                 {
-                    Events.Map<ProductAddedToCatalogEvent>()
-                        .As((anEvent, context) =>
-                        {
-                            projection.Category = anEvent.Category;
-                            projection.AddedBy = (string) context.TransactionHeaders["UserName"];
-                        });
+                    // Required due to a bug in Chill.
+                    UseThe(new ProductCatalogEntry());
+
+                    Events.Map<ProductAddedToCatalogEvent>().As((_, context) =>
+                    {
+                        The<ProductCatalogEntry>().AddedBy = (string)context.TransactionHeaders["UserName"];
+                    });
 
                     StartProjecting();
                 });
 
-                When(() => The<MemoryEventSource>().Write(
-                    new Transaction
+                When(async () =>
+                {
+                    await The<MemoryEventSource>().Write(new Transaction
                     {
                         Events = new[]
                         {
                             new EventEnvelope
                             {
-                                Body = new ProductAddedToCatalogEvent
-                                {
-                                    ProductKey = "c350E",
-                                    Category = "Hybrid"
-                                }
+                                Body = new ProductAddedToCatalogEvent()
                             }
                         },
                         Headers = new Dictionary<string, object>
                         {
                             ["UserName"] = "Pavel"
                         }
-                    }));
+                    });
+                });
             }
 
             [Fact]
             public void Then_it_should_use_the_header()
             {
-                projection.AddedBy.Should().Be("Pavel");
+                The<ProductCatalogEntry>().AddedBy.Should().Be("Pavel");
+            }
+        }
+
+        public class When_event_handling_fails : Given_a_projector_with_an_in_memory_event_source
+        {
+            public When_event_handling_fails()
+            {
+                Given(() =>
+                {
+                    UseThe(new InvalidOperationException());
+
+                    Events.Map<CategoryDiscontinuedEvent>().As(_ =>
+                    {
+                        throw The<InvalidOperationException>();
+                    });
+
+                    UseThe(new Transaction
+                    {
+                        Events = new[]
+                        {
+                            UseThe(new EventEnvelope
+                            {
+                                Body = The<CategoryDiscontinuedEvent>()
+                            })
+                        }
+                    });
+
+                    StartProjecting();
+                });
+
+                When(() => The<MemoryEventSource>().Write(The<Transaction>()), deferedExecution: true);
+            }
+
+            [Fact]
+            public void Then_it_should_wrap_the_exception_into_a_projection_exception()
+            {
+                WhenAction.ShouldThrow<ProjectionException>()
+                    .Which.InnerException.Should().BeSameAs(The<InvalidOperationException>());
+            }
+
+            [Fact]
+            public void Then_it_should_include_the_current_event_into_the_projection_exception()
+            {
+                WhenAction.ShouldThrow<ProjectionException>().Which.CurrentEvent.Should().Be(The<EventEnvelope>());
+            }
+
+            [Fact]
+            public void Then_it_should_include_the_current_transaction_batch_into_the_projection_exception()
+            {
+                WhenAction.ShouldThrow<ProjectionException>().Which.TransactionBatch.Should().BeEquivalentTo(The<Transaction>());
             }
         }
 
