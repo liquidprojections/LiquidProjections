@@ -14,7 +14,7 @@ namespace LiquidProjections.NHibernate
     /// Can also have child projectors of type <see cref="INHibernateChildProjector"/> which project events
     /// in the same transaction just before the parent projector.
     /// Uses context of type <see cref="NHibernateProjectionContext"/>.
-    /// Throws <see cref="NHibernateProjectionException"/> when it detects known errors in the event handlers.
+    /// Throws <see cref="ProjectionException"/> when it detects errors in the event handlers.
     /// </summary>
     public sealed class NHibernateProjector<TProjection, TKey, TState>
         where TProjection : class, IHaveIdentity<TKey>, new()
@@ -86,7 +86,20 @@ namespace LiquidProjections.NHibernate
         /// </summary>
         public async Task Handle(IReadOnlyList<Transaction> transactions)
         {
+            if (transactions == null)
+            {
+                throw new ArgumentNullException(nameof(transactions));
+            }
+
             foreach (IList<Transaction> batch in transactions.InBatchesOf(BatchSize))
+            {
+                await ProjectTransactionBatch(batch).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ProjectTransactionBatch(IList<Transaction> batch)
+        {
+            try
             {
                 using (ISession session = sessionFactory())
                 {
@@ -94,12 +107,28 @@ namespace LiquidProjections.NHibernate
 
                     foreach (Transaction transaction in batch)
                     {
-                        await ProjectTransaction(transaction, session);
+                        await ProjectTransaction(transaction, session).ConfigureAwait(false);
                     }
 
                     StoreLastCheckpoint(session, batch.Last());
                     session.Transaction.Commit();
                 }
+            }
+            catch (ProjectionException projectionException)
+            {
+                projectionException.Projector = typeof(TProjection).ToString();
+                projectionException.SetTransactionBatch(batch);
+                throw;
+            }
+            catch (Exception exception)
+            {
+                var projectionException = new ProjectionException("Projector failed to project transaction batch.", exception)
+                {
+                    Projector = typeof(TProjection).ToString()
+                };
+
+                projectionException.SetTransactionBatch(batch);
+                throw projectionException;
             }
         }
 
@@ -117,20 +146,44 @@ namespace LiquidProjections.NHibernate
                     TransactionHeaders = transaction.Headers
                 };
 
-                await mapConfigurator.ProjectEvent(eventEnvelope.Body, context);
+                try
+                {
+                    await mapConfigurator.ProjectEvent(eventEnvelope.Body, context).ConfigureAwait(false);
+                }
+                catch (ProjectionException projectionException)
+                {
+                    projectionException.TransactionId = transaction.Id;
+                    projectionException.CurrentEvent = eventEnvelope;
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    throw new ProjectionException("Projector failed to project an event.", exception)
+                    {
+                        TransactionId = transaction.Id,
+                        CurrentEvent = eventEnvelope
+                    };
+                }
             }
         }
 
         private void StoreLastCheckpoint(ISession session, Transaction transaction)
         {
-            TState existingState = session.Get<TState>(StateKey);
-            TState state = existingState ?? new TState { Id = StateKey };
-            state.Checkpoint = transaction.Checkpoint;
-            state.LastUpdateUtc = DateTime.UtcNow;
-
-            if (existingState == null)
+            try
             {
-                session.Save(state);
+                TState existingState = session.Get<TState>(StateKey);
+                TState state = existingState ?? new TState { Id = StateKey };
+                state.Checkpoint = transaction.Checkpoint;
+                state.LastUpdateUtc = DateTime.UtcNow;
+
+                if (existingState == null)
+                {
+                    session.Save(state);
+                }
+            }
+            catch (Exception exception)
+            {
+                throw new ProjectionException("Projector failed to store last checkpoint.", exception);
             }
         }
 

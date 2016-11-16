@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -24,14 +25,15 @@ namespace LiquidProjections
 
             subscribers.Add(subscriber);
 
-            Task.Run(async () =>
+            Func<Task> asyncAction = async () =>
             {
                 foreach (Transaction transaction in history)
                 {
-                    await subscriber.Send(new[] { transaction });
+                    await subscriber.Send(new[] { transaction }).ConfigureAwait(false);
                 }
+            };
 
-            }).Wait();
+            asyncAction().ConfigureAwait(false).GetAwaiter().GetResult();
 
             return subscriber;
         }
@@ -47,7 +49,7 @@ namespace LiquidProjections
                 }).ToArray()
             };
 
-            await Write(transaction);
+            await Write(transaction).ConfigureAwait(false);
 
             return transaction;
         }
@@ -61,12 +63,17 @@ namespace LiquidProjections
                     transaction.Checkpoint = (++lastCheckpoint);
                 }
 
+                if (string.IsNullOrEmpty(transaction.Id))
+                {
+                    transaction.Id = transaction.Checkpoint.ToString(CultureInfo.InvariantCulture);
+                }
+
                 history.Add(transaction);
             }
 
             foreach (var subscriber in subscribers)
             {
-                await subscriber.Send(transactions);
+                await subscriber.Send(transactions).ConfigureAwait(false);
             }
         }
 
@@ -84,7 +91,7 @@ namespace LiquidProjections
                 }
             };
 
-            await Write(transaction);
+            await Write(transaction).ConfigureAwait(false);
 
             return transaction;
         }
@@ -111,7 +118,7 @@ namespace LiquidProjections
             {
                 foreach (var batch in transactions.Where(t => t.Checkpoint >= fromCheckpoint).InBatchesOf(batchSize))
                 {
-                    await handler(batch.ToList().AsReadOnly());
+                    await handler(batch.ToList().AsReadOnly()).ConfigureAwait(false);
                 }
             }
         }

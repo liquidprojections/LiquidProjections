@@ -50,7 +50,7 @@ namespace LiquidProjections.NEventStore
                 return pageFromCache;
             }
 
-            Page loadedPage = await LoadNextPageSequentially(checkpoint);
+            Page loadedPage = await LoadNextPageSequentially(checkpoint).ConfigureAwait(false);
             if (loadedPage.Transactions.Count == maxPageSize)
             {
                 StartPreloadingNextPage(loadedPage.LastCheckpoint);
@@ -113,11 +113,13 @@ namespace LiquidProjections.NEventStore
 
                     if (timeAfterPreviousRequest < pollInterval)
                     {
-                        await Task.Delay(pollInterval - timeAfterPreviousRequest);
+                        await Task.Delay(pollInterval - timeAfterPreviousRequest).ConfigureAwait(false);
                     }
                 }
 
-                Page candidatePage = await TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(checkpoint);
+                Page candidatePage = await TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(checkpoint)
+                    .ConfigureAwait(false);
+
                 if (candidatePage.PreviousCheckpoint == checkpoint && candidatePage.Transactions.Count > 0)
                 {
                     return candidatePage;
@@ -168,7 +170,7 @@ namespace LiquidProjections.NEventStore
 
             try
             {
-                nextPage = await TryLoadNextPage(checkpoint);
+                nextPage = await TryLoadNextPage(checkpoint).ConfigureAwait(false);
             }
             catch (Exception exception)
             {
@@ -210,7 +212,7 @@ namespace LiquidProjections.NEventStore
                     // TODO: Properly log the exception
                     return new List<Transaction>();
                 }
-            });
+            }).ConfigureAwait(false);
 
             if (transactions.Count > 0)
             {

@@ -88,8 +88,8 @@ namespace LiquidProjections.NEventStore
         {
             while (!cancellationTokenSource.IsCancellationRequested)
             {
-                var page = await eventStoreClient.GetNextPage(lastCheckpoint);
-                await observer(page.Transactions);
+                Page page = await eventStoreClient.GetNextPage(lastCheckpoint).ConfigureAwait(false);
+                await observer(page.Transactions).ConfigureAwait(false);
                 lastCheckpoint = page.LastCheckpoint;
             }
         }

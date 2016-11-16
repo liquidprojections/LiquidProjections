@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace LiquidProjections.NHibernate
@@ -7,7 +8,7 @@ namespace LiquidProjections.NHibernate
     /// Projects events to projections of type <typeparamref name="TProjection"/> with key of type <typeparamref name="TKey"/>
     /// stored in a database accessed via NHibernate
     /// just before the parent projector in the same transaction.
-    /// Throws <see cref="NHibernateProjectionException"/> when it detects known errors in the event handlers.
+    /// Throws <see cref="ProjectionException"/> when it detects errors in the event handlers.
     /// </summary>
     public sealed class NHibernateChildProjector<TProjection, TKey> : INHibernateChildProjector
         where TProjection : class, IHaveIdentity<TKey>, new()
@@ -32,9 +33,38 @@ namespace LiquidProjections.NHibernate
             mapConfigurator = new NHibernateEventMapConfigurator<TProjection, TKey>(mapBuilder, children);
         }
 
-        Task INHibernateChildProjector.ProjectEvent(object anEvent, NHibernateProjectionContext context)
+        async Task INHibernateChildProjector.ProjectEvent(object anEvent, NHibernateProjectionContext context)
         {
-            return mapConfigurator.ProjectEvent(anEvent, context);
+            if (anEvent == null)
+            {
+                throw new ArgumentNullException(nameof(anEvent));
+            }
+
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            try
+            {
+                await mapConfigurator.ProjectEvent(anEvent, context).ConfigureAwait(false);
+            }
+            catch (ProjectionException projectionException)
+            {
+                if (string.IsNullOrEmpty(projectionException.ChildProjector))
+                {
+                    projectionException.ChildProjector = typeof(TProjection).ToString();
+                }
+
+                throw;
+            }
+            catch (Exception exception)
+            {
+                throw new ProjectionException("Projector failed to project an event.", exception)
+                {
+                    ChildProjector = typeof(TProjection).ToString()
+                };
+            }
         }
     }
 }

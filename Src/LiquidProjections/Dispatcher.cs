@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using LiquidProjections.Logging;
+
 namespace LiquidProjections
 {
     public class Dispatcher
@@ -18,27 +20,39 @@ namespace LiquidProjections
             this.eventStore = eventStore;
         }
 
-        public void Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
             if (handler == null)
             {
                 throw new ArgumentNullException(nameof(handler));
             }
 
-            // TODO: intercept and log errors
+            var subscriptionMonitor = new object();
+            IDisposable subscription = null;
 
-            eventStore.Subscribe(checkpoint, async transactions =>
+            lock (subscriptionMonitor)
             {
-                try
+                subscription = eventStore.Subscribe(checkpoint, async transactions =>
                 {
-                    await handler(transactions);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    throw;
-                }
-            });
+                    try
+                    {
+                        await handler(transactions);
+                    }
+                    catch (Exception exception)
+                    {
+                        LogProvider.GetCurrentClassLogger().FatalException(
+                            "Projector exception was not handled. Event subscription has been cancelled.",
+                            exception);
+
+                        lock (subscriptionMonitor)
+                        {
+                            subscription.Dispose();
+                        }
+                    }
+                });
+            }
+
+            return subscription;
         }
     }
 }

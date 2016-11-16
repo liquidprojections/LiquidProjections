@@ -110,7 +110,7 @@ task RunTests -depends Compile -Description "Running all unit tests." {
         "$TestsDir\LiquidProjections.NEventStore.Specs\bin\Release\LiquidProjections.NEventStore.Specs.dll" `
         "$TestsDir\LiquidProjections.RavenDB.Specs\bin\Release\LiquidProjections.RavenDB.Specs.dll" `
         "$TestsDir\LiquidProjections.NHibernate.Specs\bin\Release\LiquidProjections.NHibernate.Specs.dll" `
-        -html "$ArtifactsDirectory\xunit.html"  }
+        -html "$ArtifactsDirectory\xunit.html" -parallel assemblies }
 }
 
 task MergeAssemblies -depends Compile -Description "Merging dependencies" {
