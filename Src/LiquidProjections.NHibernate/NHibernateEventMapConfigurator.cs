@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace LiquidProjections.NHibernate
 {
-    internal sealed class NHibernateEventMapConfigurator<TProjection, TKey>
+    internal sealed class NHibernateEventMapConfigurator<TProjection, TKey> : IEventMap<NHibernateProjectionContext>
         where TProjection : class, IHaveIdentity<TKey>, new()
     {
         private readonly IEventMap<NHibernateProjectionContext> map;
@@ -133,7 +133,7 @@ namespace LiquidProjections.NHibernate
             return Task.FromResult(false);
         }
 
-        public async Task ProjectEvent(object anEvent, NHibernateProjectionContext context)
+        public async Task Handle(object anEvent, NHibernateProjectionContext context)
         {
             foreach (INHibernateChildProjector child in children)
             {
