@@ -1,4 +1,5 @@
-﻿using System;
+﻿using LiquidProjections.NEventStore.Logging;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -33,6 +34,11 @@ namespace LiquidProjections.NEventStore
 
             lock (syncRoot)
             {
+                if (isDisposed)
+                {
+                    throw new ObjectDisposedException(nameof(Subscription));
+                }
+
                 cancellationTokenSource = new CancellationTokenSource();
 
                 Task = Task.Factory
@@ -86,11 +92,27 @@ namespace LiquidProjections.NEventStore
 
         private async Task RunAsync()
         {
-            while (!cancellationTokenSource.IsCancellationRequested)
+            try
             {
-                Page page = await eventStoreClient.GetNextPage(lastCheckpoint).ConfigureAwait(false);
-                await observer(page.Transactions).ConfigureAwait(false);
-                lastCheckpoint = page.LastCheckpoint;
+                while (!cancellationTokenSource.IsCancellationRequested)
+                {
+                    Page page = await eventStoreClient.GetNextPage(lastCheckpoint)
+                        .WithWaitCancellation(cancellationTokenSource.Token)
+                        .ConfigureAwait(false);
+
+                    await observer(page.Transactions).ConfigureAwait(false);
+                    lastCheckpoint = page.LastCheckpoint;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // Do nothing.
+            }
+            catch (Exception exception)
+            {
+                LogProvider.GetCurrentClassLogger().FatalException(
+                    "NEventStore polling task has failed. Event subscription has been cancelled.",
+                    exception);
             }
         }
     }

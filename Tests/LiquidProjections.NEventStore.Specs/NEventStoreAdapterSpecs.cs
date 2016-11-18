@@ -103,6 +103,7 @@ namespace LiquidProjections.NEventStore.Specs
                 actualTransaction.Events.ShouldBeEquivalentTo(commit.Events, options => options.ExcludingMissingMembers());
             }
         }
+
         public class When_there_are_no_more_commits : GivenSubject<NEventStoreAdapter>
         {
             private readonly TimeSpan pollingInterval = 500.Milliseconds();
@@ -141,6 +142,69 @@ namespace LiquidProjections.NEventStore.Specs
                 utcNow = utcNow.Add(1.Seconds());
 
                 A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).MustHaveHappened(Repeated.Exactly.Once);
+            }
+        }
+
+        public class When_disposing : GivenSubject<NEventStoreAdapter>
+        {
+            private readonly TimeSpan pollingInterval = 500.Milliseconds();
+            private DateTime utcNow = DateTime.UtcNow;
+            private IPersistStreams eventStore;
+
+            public When_disposing()
+            {
+                Given(() =>
+                {
+                    eventStore = A.Fake<IPersistStreams>();
+                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new ICommit[0]);
+
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => utcNow));
+
+                    Subject.Subscribe(1000, transactions => Task.FromResult(0));
+                });
+
+                When(() => Subject.Dispose(), deferedExecution: true);
+            }
+
+            [Fact]
+            public void Then_it_should_stop()
+            {
+                if (!Task.Run(() => WhenAction.ShouldNotThrow()).Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new InvalidOperationException("The adapter has not stopped in 10 seconds.");
+                }
+            }
+        }
+
+        public class When_disposing_subscription : GivenSubject<NEventStoreAdapter>
+        {
+            private readonly TimeSpan pollingInterval = 500.Milliseconds();
+            private DateTime utcNow = DateTime.UtcNow;
+            private IPersistStreams eventStore;
+            private IDisposable subscription;
+
+            public When_disposing_subscription()
+            {
+                Given(() =>
+                {
+                    eventStore = A.Fake<IPersistStreams>();
+                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new ICommit[0]);
+
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => utcNow));
+
+                    subscription = Subject.Subscribe(1000, transactions => Task.FromResult(0));
+                });
+
+                When(() => subscription.Dispose(), deferedExecution: true);
+            }
+
+            [Fact]
+            public void Then_it_should_stop()
+            {
+                if (!Task.Run(() => WhenAction.ShouldNotThrow()).Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new InvalidOperationException("The subscription has not stopped in 10 seconds.");
+                }
             }
         }
     }

@@ -8,7 +8,7 @@ using NEventStore.Persistence;
 
 namespace LiquidProjections.NEventStore
 {
-    public class NEventStoreAdapter : IEventStore
+    public class NEventStoreAdapter : IEventStore, IDisposable
     {
         private readonly TimeSpan pollInterval;
         private readonly int maxPageSize;
@@ -98,6 +98,8 @@ namespace LiquidProjections.NEventStore
         {
             while (true)
             {
+                cancellationTokenSource.Token.ThrowIfCancellationRequested();
+
                 if (isDisposed)
                 {
                     return new Page(checkpoint, new Transaction[0]);
@@ -129,6 +131,11 @@ namespace LiquidProjections.NEventStore
 
         private Task<Page> TryLoadNextPageSequentiallyOrWaitForCurrentLoadingToFinish(long? checkpoint)
         {
+            if (isDisposed)
+            {
+                return Task.FromResult(new Page(checkpoint, new Transaction[0]));
+            }
+
             TaskCompletionSource<Page> taskCompletionSource = null;
             bool isTaskOwner = false;
 
@@ -142,13 +149,6 @@ namespace LiquidProjections.NEventStore
                     Task<Page> oldLoader = Interlocked.CompareExchange(ref currentLoader, taskCompletionSource.Task, null);
                     isTaskOwner = oldLoader == null;
                     loader = isTaskOwner ? taskCompletionSource.Task : oldLoader;
-
-                    if (isDisposed)
-                    {
-                        taskCompletionSource = null;
-                        isTaskOwner = false;
-                        return Task.FromResult(new Page(checkpoint, new Transaction[0]));
-                    }
                 }
 
                 return loader;
@@ -271,7 +271,7 @@ namespace LiquidProjections.NEventStore
 
                     cancellationTokenSource.Cancel();
 
-                    foreach (var subscription in subscriptions)
+                    foreach (Subscription subscription in subscriptions.ToArray())
                     {
                         subscription.Complete();
                     }

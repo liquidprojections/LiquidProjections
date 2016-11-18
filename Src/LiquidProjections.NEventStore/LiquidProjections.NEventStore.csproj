@@ -23,6 +23,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DocumentationFile>bin\Debug\LiquidProjections.NEventStore.XML</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,6 +35,7 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <DocumentationFile>bin\Release\LiquidProjections.NEventStore.XML</DocumentationFile>
     <NoWarn>1591</NoWarn>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="NEventStore, Version=5.2.0.0, Culture=neutral, processorArchitecture=MSIL">
@@ -50,6 +52,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="App_Packages\LibLog.4.2\LibLog.cs" />
     <Compile Include="CheckpointRequestTimestamp.cs" />
     <Compile Include="NEventStoreAdapter.cs" />
     <Compile Include="LruCache.cs" />
@@ -57,6 +60,7 @@
     <Compile Include="Subscriber.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Subscription.cs" />
+    <Compile Include="TaskExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".nuspec" />
