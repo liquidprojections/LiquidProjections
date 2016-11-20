@@ -80,6 +80,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Testing\LiquidProjections.Testing.csproj">
+      <Project>{52964000-5aa0-4138-9089-3fddec70ebb0}</Project>
+      <Name>LiquidProjections.Testing</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
       <Project>{20506f22-9a20-4c07-b3df-163ca338030f}</Project>
       <Name>LiquidProjections</Name>

@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace LiquidProjections
+namespace LiquidProjections.Testing
 {
     internal static class EnumerableExtensions
     {

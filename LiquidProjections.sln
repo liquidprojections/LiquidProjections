@@ -33,6 +33,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.NHibernat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.NHibernate.Specs", "Tests\LiquidProjections.NHibernate.Specs\LiquidProjections.NHibernate.Specs.csproj", "{86D27EE2-9884-4E09-B6A7-5D959F9F836B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LiquidProjections.Testing", "Src\LiquidProjections.Testing\LiquidProjections.Testing.csproj", "{52964000-5AA0-4138-9089-3FDDEC70EBB0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,6 +77,10 @@ Global
 		{86D27EE2-9884-4E09-B6A7-5D959F9F836B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{86D27EE2-9884-4E09-B6A7-5D959F9F836B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{86D27EE2-9884-4E09-B6A7-5D959F9F836B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{52964000-5AA0-4138-9089-3FDDEC70EBB0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{52964000-5AA0-4138-9089-3FDDEC70EBB0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{52964000-5AA0-4138-9089-3FDDEC70EBB0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{52964000-5AA0-4138-9089-3FDDEC70EBB0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -89,5 +95,6 @@ Global
 		{1B10C576-5212-402E-AC19-8CA1547E3F34} = {866E1395-DA55-4E79-B3AA-E610D97BEF18}
 		{F5953539-5C27-4A7C-89BD-7FBE4A67915A} = {AE89AB5E-BC68-4AA3-9183-A222AC81691C}
 		{86D27EE2-9884-4E09-B6A7-5D959F9F836B} = {15D45AC7-E234-431A-8EF9-0A3311A33926}
+		{52964000-5AA0-4138-9089-3FDDEC70EBB0} = {AE89AB5E-BC68-4AA3-9183-A222AC81691C}
 	EndGlobalSection
 EndGlobal
