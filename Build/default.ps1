@@ -130,6 +130,10 @@ task MergeAssemblies -depends Compile -Description "Merging dependencies" {
     Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.NHibernate.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
         "$SrcDir\LiquidProjections.NHibernate\bin\release\LiquidProjections.NHibernate.dll"
     )
+	
+	Merge-Assemblies -outputFile "$ArtifactsDirectory\LiquidProjections.Testing.dll" -libPaths "$SrcDir\LiquidProjections\bin\release" -files @(
+        "$SrcDir\LiquidProjections.Testing\bin\release\LiquidProjections.Testing.dll"
+    )
 }
 
 task CreateNuGetPackages -depends Compile, MergeAssemblies -Description "Creating NuGet package." {
