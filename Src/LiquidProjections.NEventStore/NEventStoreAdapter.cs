@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using NEventStore;
 using NEventStore.Persistence;
+using LiquidProjections.NEventStore.Logging;
 
 namespace LiquidProjections.NEventStore
 {
@@ -195,24 +196,28 @@ namespace LiquidProjections.NEventStore
             }
 
             DateTime timeOfRequestUtc = getUtcNow();
+            List<Transaction> transactions;
 
-            List<Transaction> transactions = await Task.Run(() =>
+            try
             {
-                try
-                {
-                    return eventStore
-                        .GetFrom((checkpoint != null) ? checkpoint.ToString() : "")
+                transactions = await Task
+                    .Run(() => eventStore
+                        .GetFrom(checkpoint.ToString())
                         .Take(maxPageSize)
                         .Select(ToTransaction)
-                        .ToList();
+                        .ToList())
+                    .ConfigureAwait(false);
+            }
+            catch (Exception exception)
+            {
+                LogProvider.GetLogger(typeof(NEventStoreAdapter))
+                    .ErrorException(
+                        $"Failed loading transactions starting from "
+                        + $"checkpoint { checkpoint?.ToString() ?? "NULL" } from NEventStore",
+                        exception);
 
-                }
-                catch
-                {
-                    // TODO: Properly log the exception
-                    return new List<Transaction>();
-                }
-            }).ConfigureAwait(false);
+                return new Page(checkpoint, new List<Transaction>());
+            }
 
             if (transactions.Count > 0)
             {
