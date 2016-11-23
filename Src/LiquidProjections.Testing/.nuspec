@@ -13,7 +13,7 @@
         <releaseNotes/>
       <dependencies>
         <group>
-			<dependency id="LiquidProjections" version="0.1.0-unstable0055"/>
+			<dependency id="LiquidProjections" version="0.1.0-unstable0057"/>
 		</group>
       </dependencies>
     </metadata>
