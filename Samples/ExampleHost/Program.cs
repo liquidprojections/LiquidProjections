@@ -62,7 +62,7 @@ namespace LiquidProjections.ExampleHost
                 {
                     DisableInMemoryIndexing = true,
                     DataDirectory = dataDir,
-                    CountersDataDirectory = Path.Combine(rootDir, "Counters"),
+                    Counter = { DataDirectory = Path.Combine(rootDir, "Counters") },
                     CompiledIndexCacheDirectory = Path.Combine(rootDir, "CompiledIndexCache"),
                     DefaultStorageTypeName = "Esent",
                 },
