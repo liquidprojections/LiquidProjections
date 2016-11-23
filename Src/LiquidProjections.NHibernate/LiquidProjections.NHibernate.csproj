@@ -57,6 +57,9 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="..\..\SharedAssemblyInfo.cs">
+      <Link>SharedAssemblyInfo.cs</Link>
+    </Compile>
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="INHibernateChildProjector.cs" />
