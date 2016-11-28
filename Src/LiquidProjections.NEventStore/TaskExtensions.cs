@@ -9,16 +9,20 @@ namespace LiquidProjections.NEventStore
         public static async Task<TResult> WithWaitCancellation<TResult>(this Task<TResult> task,
             CancellationToken cancellationToken)
         {
-            Task completedTask = await Task.WhenAny(task, Task.Delay(Timeout.Infinite, cancellationToken));
-
-            if (completedTask == task)
+            using (var combined = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
             {
-                return await task;
-            }
-            else
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                throw new InvalidOperationException("Infinite delay task completed.");
+                var delayTask = Task.Delay(Timeout.Infinite, combined.Token);
+                Task completedTask = await Task.WhenAny(task, delayTask);
+                if (completedTask == task)
+                {
+                    combined.Cancel();
+                    return await task;
+                }
+                else
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    throw new InvalidOperationException("Infinite delay task completed.");
+                }
             }
         }
     }
