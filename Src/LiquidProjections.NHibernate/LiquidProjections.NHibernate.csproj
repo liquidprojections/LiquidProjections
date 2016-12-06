@@ -60,6 +60,7 @@
     <Compile Include="..\..\SharedAssemblyInfo.cs">
       <Link>SharedAssemblyInfo.cs</Link>
     </Compile>
+    <Compile Include="App_Packages\FluidCaching.Sources\FluidCaching.cs" />
     <Compile Include="EnumerableExtensions.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="INHibernateChildProjector.cs" />
