@@ -9,7 +9,7 @@ namespace LiquidProjections.RavenDB
         private readonly IIndex<string, IHaveIdentity> index;
         private readonly FluidCache<IHaveIdentity> cache;
 
-        public LruProjectionCache(int capacity, TimeSpan minimumRetention, TimeSpan maximumRetention, Func<DateTime> getNow)
+        public LruProjectionCache(int capacity, TimeSpan minimumRetention, TimeSpan maximumRetention, Func<DateTime> getUtcNow)
         {
             if (capacity < 1)
             {
@@ -31,12 +31,12 @@ namespace LiquidProjections.RavenDB
                 throw new ArgumentException("Minimum retention is greater than maximum retention.");
             }
 
-            if (getNow == null)
+            if (getUtcNow == null)
             {
-                throw new ArgumentNullException(nameof(getNow));
+                throw new ArgumentNullException(nameof(getUtcNow));
             }
 
-            cache = new FluidCache<IHaveIdentity>(capacity, minimumRetention, maximumRetention, () => getNow());
+            cache = new FluidCache<IHaveIdentity>(capacity, minimumRetention, maximumRetention, () => getUtcNow());
             index = cache.AddIndex("projections", projection => projection.Id);
         }
 
