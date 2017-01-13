@@ -1,0 +1,11 @@
+﻿<ProjectConfiguration>
+  <Settings>
+    <HiddenComponentWarnings>
+      <Value>PreBuildEventDisabled</Value>
+    </HiddenComponentWarnings>
+    <IgnoredTests>
+      <AllTestsSelector />
+    </IgnoredTests>
+    <PreviouslyBuiltSuccessfully>True</PreviouslyBuiltSuccessfully>
+  </Settings>
+</ProjectConfiguration>
