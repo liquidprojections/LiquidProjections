@@ -3,7 +3,7 @@
 ## What is this?
 Liquid Projections is designed as a library (and not a framework) that should help you write maintainable projection code in an [event sourcing](https://www.martinfowler.com/eaaDev/EventSourcing.html) architecture. After [evaluating](http://www.continuousimprover.com/2016/06/event-sourcing-from-trenches-projections.html) several years of working with an event sourced architecture, I decided I needed a fresh start. This project has been designed based on the following principles:
 
-* Designed as a library whih doesn't hide the magic behind abstractions and tries to avoid the need to sub-class anything. 
+* Designed as a library which doesn't hide the magic behind abstractions and tries to avoid the need to sub-class anything. 
 * Projections must be autonomous so whether a projector stores its projections in-memory, in RavenDB or in a RDBMS is a local concern. 
 * Similarly, whether it restarts from scratch every time or stores progress information in-between is a decision each projection can make.
 * Is distributed as separate NuGet packages so that you don't need to take dependencies on stuff you don't need. 
