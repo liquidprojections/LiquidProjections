@@ -32,7 +32,7 @@ namespace LiquidProjections.ExampleHost
             container.Register<Func<IAsyncDocumentSession>>(() => store.OpenAsyncSession());
             var dispatcher = new Dispatcher(eventStore);
 
-            var bootstrapper = new CountsProjectionBootstrapper(dispatcher, store.OpenAsyncSession);
+            var bootstrapper = new CountsProjector(dispatcher, store.OpenAsyncSession);
 
             var startOptions = new StartOptions($"http://localhost:9000");
             using (WebApp.Start(startOptions, builder => builder.UseControllers(container)))

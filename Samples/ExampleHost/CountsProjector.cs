@@ -9,7 +9,7 @@ using Raven.Client;
 
 namespace LiquidProjections.ExampleHost
 {
-    public class CountsProjectionBootstrapper
+    public class CountsProjector
     {
         private readonly Dispatcher dispatcher;
         private readonly Func<IAsyncDocumentSession> sessionFactory;
@@ -20,7 +20,7 @@ namespace LiquidProjections.ExampleHost
         private RavenChildProjector<CountryLookup> countryProjector;
         private readonly LruProjectionCache cache;
 
-        public CountsProjectionBootstrapper(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
+        public CountsProjector(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
         {
             this.dispatcher = dispatcher;
             this.sessionFactory = sessionFactory;

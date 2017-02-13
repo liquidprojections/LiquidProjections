@@ -127,7 +127,7 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DocumentCountProjection.cs" />
-    <Compile Include="CountsProjectionBootstrapper.cs" />
+    <Compile Include="CountsProjector.cs" />
     <Compile Include="Events\WarrantAssignedEvent.cs" />
     <Compile Include="RealtimeStateEvaluator.cs" />
     <Compile Include="StatisticsController.cs" />
