@@ -25,9 +25,9 @@ namespace LiquidProjections.ExampleHost
             entryQueue = new Queue<ZipArchiveEntry>(zip.Entries.Where(e => e.Name.EndsWith(".json")));
         }
 
-        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            var subscriber = new Subscriber(checkpoint ?? 0, handler);
+            var subscriber = new Subscriber(lastProcessedCheckpoint ?? 0, handler);
             
             Task.Run(async () =>
             {
@@ -107,13 +107,13 @@ namespace LiquidProjections.ExampleHost
 
         internal class Subscriber : IDisposable
         {
-            private readonly long fromCheckpoint;
+            private readonly long lastProcessedCheckpoint;
             private readonly Func<IReadOnlyList<Transaction>, Task> handler;
             private bool disposed;
 
-            public Subscriber(long fromCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+            public Subscriber(long lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
             {
-                this.fromCheckpoint = fromCheckpoint;
+                this.lastProcessedCheckpoint = lastProcessedCheckpoint;
                 this.handler = handler;
             }
 
@@ -121,7 +121,7 @@ namespace LiquidProjections.ExampleHost
             {
                 if (!disposed)
                 {
-                    Transaction[] readOnlyList = transactions.Where(t => t.Checkpoint >= fromCheckpoint).ToArray();
+                    Transaction[] readOnlyList = transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).ToArray();
                     if (readOnlyList.Length > 0)
                     {
                         await handler(readOnlyList);

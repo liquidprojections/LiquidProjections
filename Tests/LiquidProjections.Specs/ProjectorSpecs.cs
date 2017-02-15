@@ -30,7 +30,7 @@ namespace LiquidProjections.Specs
 
             protected void StartProjecting()
             {
-                The<MemoryEventSource>().Subscribe(0, Subject.Handle);
+                The<MemoryEventSource>().Subscribe(110, Subject.Handle);
             }
         }
 
