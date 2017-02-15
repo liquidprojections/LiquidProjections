@@ -32,9 +32,9 @@ namespace LiquidProjections.NEventStore
             transactionCache = new LruCache<long, Transaction>(cacheSize);
         }
 
-        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
         {
-            var subscriber = new Subscriber(this, checkpoint);
+            var subscriber = new Subscriber(this, lastProcessedCheckpoint);
             return subscriber.Subscribe(handler);
         }
 

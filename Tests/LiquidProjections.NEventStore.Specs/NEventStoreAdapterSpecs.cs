@@ -145,6 +145,45 @@ namespace LiquidProjections.NEventStore.Specs
             }
         }
 
+        public class When_a_commit_is_already_projected : GivenSubject<NEventStoreAdapter>
+        {
+            private readonly TimeSpan pollingInterval = 1.Seconds();
+            private TaskCompletionSource<Transaction> transactionHandledSource = new TaskCompletionSource<Transaction>();
+
+            public When_a_commit_is_already_projected()
+            {
+                Given(() =>
+                {
+                    ICommit projectedCommit = new CommitBuilder().WithCheckpoint("123").Build();
+                    ICommit unprojectedCommit = new CommitBuilder().WithCheckpoint("124").Build();
+
+                    var eventStore = A.Fake<IPersistStreams>();
+                    A.CallTo(() => eventStore.GetFrom(A<string>.Ignored)).Returns(new[] {projectedCommit, unprojectedCommit});
+                    A.CallTo(() => eventStore.GetFrom("123")).Returns(new[] {unprojectedCommit});
+
+                    WithSubject(_ => new NEventStoreAdapter(eventStore, 11, pollingInterval, 100, () => DateTime.UtcNow));
+                });
+
+                When(() =>
+                {
+                    Subject.Subscribe(123, transactions =>
+                    {
+                        transactionHandledSource.SetResult(transactions.First());
+
+                        return Task.FromResult(0);
+                    });
+                });
+            }
+
+            [Fact]
+            public async Task Then_it_should_convert_the_unprojected_commit_details_to_a_transaction()
+            {
+                Transaction actualTransaction = await transactionHandledSource.Task;
+
+                actualTransaction.Checkpoint.Should().Be(124);
+            }
+        }
+
         public class When_disposing : GivenSubject<NEventStoreAdapter>
         {
             private readonly TimeSpan pollingInterval = 500.Milliseconds();

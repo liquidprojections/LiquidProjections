@@ -6,6 +6,6 @@ namespace LiquidProjections
 {
     public interface IEventStore
     {
-        IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler);
+        IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler);
     }
 }
