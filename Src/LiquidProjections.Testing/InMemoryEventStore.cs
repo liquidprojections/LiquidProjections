@@ -121,7 +121,7 @@ namespace LiquidProjections
         {
             if (!disposed)
             {
-                foreach (var batch in transactions.Where(t => t.Checkpoint >= lastProcessedCheckpoint).InBatchesOf(batchSize))
+                foreach (var batch in transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).InBatchesOf(batchSize))
                 {
                     await handler(batch.ToList().AsReadOnly()).ConfigureAwait(false);
                 }
