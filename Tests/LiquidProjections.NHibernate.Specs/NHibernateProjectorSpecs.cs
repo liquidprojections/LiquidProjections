@@ -741,6 +741,8 @@ namespace LiquidProjections.NHibernate.Specs
         public class When_an_event_requires_a_custom_action :
             Given_a_sqlite_projector_with_an_in_memory_event_source
         {
+            private NHibernateProjectionContext context;
+
             public When_an_event_requires_a_custom_action()
             {
                 Given(() =>
@@ -767,16 +769,41 @@ namespace LiquidProjections.NHibernate.Specs
                             context.Session.Delete(entry);
                         }
 
+                        this.context = context;
+
                         return Task.FromResult(false);
                     });
 
                     StartProjecting();
                 });
 
-                When(() => The<MemoryEventSource>().Write(new CategoryDiscontinuedEvent
-                {
-                    Category = "Hybrids",
-                }));
+                When(() => The<MemoryEventSource>().Write(
+                    new Transaction
+                    {
+                        Checkpoint = 111,
+                        Id = "MyTransactionId",
+                        StreamId = "MyStreamId",
+                        TimeStampUtc = 10.April(1979).At(13, 14, 15),
+                        Headers = new Dictionary<string, object>
+                        {
+                            ["My custom header"] = "My custom header value"
+                        },
+                        Events = new List<EventEnvelope>
+                        {
+                            new EventEnvelope
+                            {
+                                Body = new CategoryDiscontinuedEvent
+                                {
+                                    Category = "Hybrids"
+                                },
+                                Headers = new Dictionary<string, object>
+                                {
+                                    ["Some event header"] = "Some event header value"
+                                }
+                            }
+                        }
+                    })
+                );
             }
 
             [Fact]
@@ -787,6 +814,26 @@ namespace LiquidProjections.NHibernate.Specs
                     var entry = session.Get<ProductCatalogEntry>("c350E");
                     entry.Should().BeNull();
                 }
+            }
+
+            [Fact]
+            public void Then_it_should_have_created_the_context()
+            {
+                context.ShouldBeEquivalentTo(new NHibernateProjectionContext
+                {
+                    Checkpoint = 111,
+                    TransactionId = "MyTransactionId",
+                    StreamId = "MyStreamId",
+                    TimeStampUtc = 10.April(1979).At(13, 14, 15),
+                    TransactionHeaders = new Dictionary<string, object>
+                    {
+                        ["My custom header"] = "My custom header value"
+                    },
+                    EventHeaders = new Dictionary<string, object>
+                    {
+                        ["Some event header"] = "Some event header value"
+                    }
+                }, options => options.Excluding(c => c.Session));
             }
         }
 

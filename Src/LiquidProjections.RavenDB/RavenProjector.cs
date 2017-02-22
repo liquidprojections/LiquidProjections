@@ -146,6 +146,7 @@ namespace LiquidProjections.RavenDB
             {
                 var context = new RavenProjectionContext
                 {
+                    TransactionId = transaction.Id,
                     Session = session,
                     StreamId = transaction.StreamId,
                     TimeStampUtc = transaction.TimeStampUtc,

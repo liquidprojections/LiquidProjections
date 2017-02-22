@@ -58,7 +58,7 @@ namespace LiquidProjections.Specs
                     {
                         Checkpoint = 111,
                         Id = "MyTransactionId",
-                        StreamId = "MySTreamId",
+                        StreamId = "MyStreamId",
                         TimeStampUtc = 10.April(1979).At(13, 14, 15),
                         Headers = new Dictionary<string, object>
                         {
@@ -95,7 +95,7 @@ namespace LiquidProjections.Specs
                 {
                     Checkpoint = 111,
                     TransactionId = "MyTransactionId",
-                    StreamId = "MySTreamId",
+                    StreamId = "MyStreamId",
                     TimeStampUtc = 10.April(1979).At(13, 14, 15),
                     TransactionHeaders = new Dictionary<string, object>
                     {

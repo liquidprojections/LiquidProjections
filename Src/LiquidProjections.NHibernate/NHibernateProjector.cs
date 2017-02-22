@@ -138,6 +138,7 @@ namespace LiquidProjections.NHibernate
             {
                 var context = new NHibernateProjectionContext
                 {
+                    TransactionId = transaction.Id,
                     Session = session,
                     StreamId = transaction.StreamId,
                     TimeStampUtc = transaction.TimeStampUtc,
