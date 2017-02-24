@@ -8,14 +8,9 @@ namespace LiquidProjections
 {
     public class Dispatcher
     {
-        private readonly IEventStoreWithSubscriptionIds eventStore;
+        private readonly IEventStore eventStore;
 
         public Dispatcher(IEventStore eventStore)
-            : this((eventStore as IEventStoreWithSubscriptionIds) ?? new EventStoreWithSubscriptionIdAdapter(eventStore))
-        {
-        }
-
-        public Dispatcher(IEventStoreWithSubscriptionIds eventStore)
         {
             if (eventStore == null)
             {

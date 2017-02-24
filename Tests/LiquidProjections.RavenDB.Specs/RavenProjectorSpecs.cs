@@ -44,7 +44,7 @@ namespace LiquidProjections.RavenDB.Specs
                     Subject.CollectionName = collectionName;
                 }
 
-                The<MemoryEventSource>().Subscribe(0, Subject.Handle);
+                The<MemoryEventSource>().Subscribe(0, Subject.Handle, "");
             }
         }
 
