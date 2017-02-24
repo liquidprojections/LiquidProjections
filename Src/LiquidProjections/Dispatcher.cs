@@ -8,9 +8,14 @@ namespace LiquidProjections
 {
     public class Dispatcher
     {
-        private readonly IEventStore eventStore;
+        private readonly IEventStoreWithSubscriptionIds eventStore;
 
         public Dispatcher(IEventStore eventStore)
+            : this((eventStore as IEventStoreWithSubscriptionIds) ?? new EventStoreWithSubscriptionIdAdapter(eventStore))
+        {
+        }
+
+        public Dispatcher(IEventStoreWithSubscriptionIds eventStore)
         {
             if (eventStore == null)
             {
@@ -20,7 +25,7 @@ namespace LiquidProjections
             this.eventStore = eventStore;
         }
 
-        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
         {
             if (handler == null)
             {
@@ -32,27 +37,34 @@ namespace LiquidProjections
 
             lock (subscriptionMonitor)
             {
-                subscription = eventStore.Subscribe(checkpoint, async transactions =>
-                {
-                    try
+                subscription = eventStore.Subscribe(checkpoint,
+                    async transactions =>
                     {
-                        await handler(transactions);
-                    }
-                    catch (Exception exception)
-                    {
-                        LogProvider.GetCurrentClassLogger().FatalException(
-                            "Projector exception was not handled. Event subscription has been cancelled.",
-                            exception);
-
-                        lock (subscriptionMonitor)
+                        try
                         {
-                            subscription.Dispose();
+                            await handler(transactions);
                         }
-                    }
-                });
+                        catch (Exception exception)
+                        {
+                            LogProvider.GetCurrentClassLogger().FatalException(
+                                "Projector exception was not handled. Event subscription has been cancelled.",
+                                exception);
+
+                            lock (subscriptionMonitor)
+                            {
+                                subscription.Dispose();
+                            }
+                        }
+                    },
+                    subscriptionId);
             }
 
             return subscription;
+        }
+
+        public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        {
+            return Subscribe(checkpoint, handler, null);
         }
     }
 }

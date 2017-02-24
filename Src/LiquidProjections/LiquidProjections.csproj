@@ -60,6 +60,8 @@
     <Compile Include="EventMapBuilder.cs" />
     <Compile Include="Dispatcher.cs" />
     <Compile Include="EventEnvelope.cs" />
+    <Compile Include="EventStoreWithSubscriptionIdAdapter.cs" />
+    <Compile Include="IEventStoreWithSubscriptionIds.cs" />
     <Compile Include="MapBuilding\ICreateEventActionBuilder.cs" />
     <Compile Include="MapBuilding\ICreateIfDoesNotExistEventActionBuilder.cs" />
     <Compile Include="IEventMap.cs" />
