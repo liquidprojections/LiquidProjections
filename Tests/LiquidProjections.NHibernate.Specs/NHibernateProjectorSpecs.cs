@@ -49,7 +49,7 @@ namespace LiquidProjections.NHibernate.Specs
                     Subject.StateKey = stateKey;
                 }
 
-                The<MemoryEventSource>().Subscribe(0, Subject.Handle);
+                The<MemoryEventSource>().Subscribe(0, Subject.Handle, "");
             }
         }
 

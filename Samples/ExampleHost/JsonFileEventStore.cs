@@ -25,7 +25,7 @@ namespace LiquidProjections.ExampleHost
             entryQueue = new Queue<ZipArchiveEntry>(zip.Entries.Where(e => e.Name.EndsWith(".json")));
         }
 
-        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
         {
             var subscriber = new Subscriber(lastProcessedCheckpoint ?? 0, handler);
             

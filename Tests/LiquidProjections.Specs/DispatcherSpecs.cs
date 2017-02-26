@@ -64,7 +64,7 @@ namespace LiquidProjections.Specs
             public bool IsSubscribed { get; private set; }
             public Func<IReadOnlyList<Transaction>, Task> Handler { get; private set; }
 
-            public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+            public IDisposable Subscribe(long? previousCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId = null)
             {
                 lock (syncRoot)
                 {

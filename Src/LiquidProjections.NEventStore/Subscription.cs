@@ -1,6 +1,7 @@
 ﻿using LiquidProjections.NEventStore.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,18 +13,20 @@ namespace LiquidProjections.NEventStore
         private CancellationTokenSource cancellationTokenSource;
         private readonly object syncRoot = new object();
         private bool isDisposed;
-        private long? lastCheckpoint;
+        private long previousCheckpoint;
         private readonly Func<IReadOnlyList<Transaction>, Task> observer;
 
-        public Subscription(NEventStoreAdapter eventStoreClient, long? checkpoint,
-            Func<IReadOnlyList<Transaction>, Task> observer)
+        public Subscription(NEventStoreAdapter eventStoreClient, long previousCheckpoint,
+            Func<IReadOnlyList<Transaction>, Task> observer, string subscriptionId = null)
         {
             this.eventStoreClient = eventStoreClient;
-            lastCheckpoint = checkpoint;
+            this.previousCheckpoint = previousCheckpoint;
             this.observer = observer;
+            Id = subscriptionId;
         }
 
         public Task Task { get; private set; }
+        public string Id { get; }
 
         public void Start()
         {
@@ -40,6 +43,9 @@ namespace LiquidProjections.NEventStore
                 }
 
                 cancellationTokenSource = new CancellationTokenSource();
+#if DEBUG
+                LogProvider.GetCurrentClassLogger().Debug(() => $"Subscription {Id ?? "without ID"} has been started.");
+#endif
 
                 Task = Task.Factory
                     .StartNew(
@@ -74,6 +80,10 @@ namespace LiquidProjections.NEventStore
             {
                 if (cancellationTokenSource != null)
                 {
+#if DEBUG
+                    LogProvider.GetCurrentClassLogger().Debug(() => $"Subscription {Id ?? "without ID"} is being stopped.");
+#endif
+
                     if (!cancellationTokenSource.IsCancellationRequested)
                     {
                         cancellationTokenSource.Cancel();
@@ -87,6 +97,10 @@ namespace LiquidProjections.NEventStore
                 {
                     eventStoreClient.subscriptions.Remove(this);
                 }
+
+#if DEBUG
+                LogProvider.GetCurrentClassLogger().Debug(() => $"Subscription {Id ?? "without ID"} has been stopped.");
+#endif
             }
         }
 
@@ -96,12 +110,36 @@ namespace LiquidProjections.NEventStore
             {
                 while (!cancellationTokenSource.IsCancellationRequested)
                 {
-                    Page page = await eventStoreClient.GetNextPage(lastCheckpoint)
+#if DEBUG
+                    LogProvider.GetCurrentClassLogger().Debug(() =>
+                        $"Subscription {Id ?? "without ID"} is requesting a page after checkpoint {previousCheckpoint}.");
+#endif
+
+                    Page page = await eventStoreClient.GetNextPage(previousCheckpoint
+#if DEBUG
+                        , Id
+#endif
+                        )
                         .WithWaitCancellation(cancellationTokenSource.Token)
                         .ConfigureAwait(false);
 
+#if DEBUG
+                    LogProvider.GetCurrentClassLogger().Debug(() =>
+                        $"Subscription {Id ?? "without ID"} has got a page of size {page.Transactions.Count} " +
+                        $"from checkpoint {page.Transactions.First().Checkpoint} "+
+                        $"to checkpoint {page.Transactions.Last().Checkpoint}.");
+#endif
+
                     await observer(page.Transactions).ConfigureAwait(false);
-                    lastCheckpoint = page.LastCheckpoint;
+
+#if DEBUG
+                    LogProvider.GetCurrentClassLogger().Debug(() =>
+                        $"Subscription {Id ?? "without ID"} has processed a page of size {page.Transactions.Count} " +
+                        $"from checkpoint {page.Transactions.First().Checkpoint} " +
+                        $"to checkpoint {page.Transactions.Last().Checkpoint}.");
+#endif
+
+                    previousCheckpoint = page.LastCheckpoint;
                 }
             }
             catch (OperationCanceledException)

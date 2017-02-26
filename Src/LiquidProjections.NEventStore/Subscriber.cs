@@ -7,13 +7,16 @@ namespace LiquidProjections.NEventStore
     internal sealed class Subscriber
     {
         private readonly NEventStoreAdapter eventStoreClient;
-        private readonly long? checkpoint;
+        private readonly long previousCheckpoint;
 
-        public Subscriber(NEventStoreAdapter eventStoreClient, long? checkpoint)
+        public Subscriber(NEventStoreAdapter eventStoreClient, long previousCheckpoint, string subscriptionId)
         {
             this.eventStoreClient = eventStoreClient;
-            this.checkpoint = checkpoint;
+            this.previousCheckpoint = previousCheckpoint;
+            SubscriptionId = subscriptionId;
         }
+
+        public string SubscriptionId { get; }
 
         public IDisposable Subscribe(Func<IReadOnlyList<Transaction>, Task> observer)
         {
@@ -31,7 +34,7 @@ namespace LiquidProjections.NEventStore
                     throw new ObjectDisposedException(typeof(NEventStoreAdapter).FullName);
                 }
 
-                subscription = new Subscription(eventStoreClient, checkpoint, observer);
+                subscription = new Subscription(eventStoreClient, previousCheckpoint, observer, SubscriptionId);
                 eventStoreClient.subscriptions.Add(subscription);
             }
 

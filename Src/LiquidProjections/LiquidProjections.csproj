@@ -60,12 +60,12 @@
     <Compile Include="EventMapBuilder.cs" />
     <Compile Include="Dispatcher.cs" />
     <Compile Include="EventEnvelope.cs" />
+    <Compile Include="IEventStore.cs" />
     <Compile Include="MapBuilding\ICreateEventActionBuilder.cs" />
     <Compile Include="MapBuilding\ICreateIfDoesNotExistEventActionBuilder.cs" />
     <Compile Include="IEventMap.cs" />
     <Compile Include="IEventMapBuilder.cs" />
     <Compile Include="MapBuilding\IEventMappingBuilder.cs" />
-    <Compile Include="IEventStore.cs" />
     <Compile Include="ITrackingStore.cs" />
     <Compile Include="MapBuilding\IUpdateEventActionBuilder.cs" />
     <Compile Include="MapBuilding\ICreateOrUpdateEventActionBuilder.cs" />

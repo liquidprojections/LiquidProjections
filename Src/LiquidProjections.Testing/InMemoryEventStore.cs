@@ -20,7 +20,7 @@ namespace LiquidProjections
             this.batchSize = batchSize;
         }
 
-        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
         {
             lastCheckpoint = lastProcessedCheckpoint ?? 0;
             var subscriber = new Subscriber(lastCheckpoint, batchSize, handler);
