@@ -9,6 +9,7 @@ namespace LiquidProjections
     {
         private readonly IEventMap<ProjectionContext> map;
         private readonly IReadOnlyList<Projector> children;
+        private ShouldRetry shouldRetry = (exception, count) => false;
 
         public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder, IEnumerable<Projector> children = null)
         {
@@ -27,6 +28,24 @@ namespace LiquidProjections
             }
         }
 
+        /// <summary>
+        /// A delegate that will be executed when projecting a transaction fails.
+        /// This delegate returns a value that indicates if the action should be retried.
+        /// </summary>
+        public ShouldRetry ShouldRetry
+        {
+            get { return shouldRetry; }
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
+                }
+
+                shouldRetry = value;
+            }
+        }
+
         private void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
         {
             eventMapBuilder.HandleCustomActionsAs((context, projector) => projector());
@@ -41,7 +60,26 @@ namespace LiquidProjections
         {
             foreach (Transaction transaction in transactions)
             {
-                await ProjectTransaction(transaction);
+                await ExecuteWithRetry(() => ProjectTransaction(transaction)).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteWithRetry(Func<Task> action)
+        {
+            for (int attempt = 1;;attempt++)
+            {
+                try
+                {
+                    await action();
+                    break;
+                }
+                catch (ProjectionException exception)
+                {
+                    if (!ShouldRetry(exception, attempt))
+                    {
+                        throw;
+                    }
+                }
             }
         }
 

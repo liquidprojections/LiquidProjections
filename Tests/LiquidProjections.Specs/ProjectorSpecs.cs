@@ -1,10 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Chill;
-using Chill.StateBuilders;
-
 using FluentAssertions;
 using Xunit;
 
@@ -253,6 +249,70 @@ namespace LiquidProjections.Specs
             public void Then_it_should_include_the_current_transaction_batch_into_the_projection_exception()
             {
                 WhenAction.ShouldThrow<ProjectionException>().Which.TransactionBatch.Should().BeEquivalentTo(The<Transaction>());
+            }
+        }
+
+        public class When_event_handling_fails_with_a_custom_exception_policy :
+            Given_a_projector_with_an_in_memory_event_source
+        {
+            private bool succeeded;
+            private int numerOfFailedAttempts;
+            private const int NumberOfTimesToFail = 3;
+
+            public When_event_handling_fails_with_a_custom_exception_policy()
+            {
+                Given(() =>
+                {
+                    UseThe(new InvalidOperationException());
+
+                    Events.Map<CategoryDiscontinuedEvent>().As((@event, context) =>
+                    {
+                        if (numerOfFailedAttempts < NumberOfTimesToFail)
+                        {
+                            throw The<InvalidOperationException>();
+                        }
+
+                        succeeded = true;
+                    });
+
+                    StartProjecting();
+
+                    Subject.ShouldRetry = (exception, attempts) =>
+                    {
+                        numerOfFailedAttempts = attempts;
+                        if (attempts <= NumberOfTimesToFail)
+                        {
+                            return true;
+                        }
+
+                        return false;
+                    };
+
+                    UseThe(new Transaction
+                    {
+                        Events = new[]
+                        {
+                            UseThe(new EventEnvelope
+                            {
+                                Body = new CategoryDiscontinuedEvent()
+                            })
+                        }
+                    });
+                });
+
+                When(() => The<MemoryEventSource>().Write(The<Transaction>()));
+            }
+
+            [Fact]
+            public void Then_it_should_try_again()
+            {
+                numerOfFailedAttempts.Should().Be(NumberOfTimesToFail);
+            }
+
+            [Fact]
+            public void Then_it_should_succeed()
+            {
+                succeeded.Should().BeTrue();
             }
         }
 

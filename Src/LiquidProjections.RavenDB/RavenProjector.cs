@@ -20,6 +20,7 @@ namespace LiquidProjections.RavenDB
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private int batchSize;
         private readonly RavenEventMapConfigurator<TProjection> mapConfigurator;
+        private ShouldRetry shouldRetry = (exception, count) => false;
 
         /// <summary>
         /// Creates a new instance of <see cref="RavenProjector{TProjection}"/>.
@@ -71,6 +72,24 @@ namespace LiquidProjections.RavenDB
         }
 
         /// <summary>
+        /// A delegate that will be executed when projecting a batch of transactions fails.
+        /// This delegate returns a value that indicates if the action should be retried.
+        /// </summary>
+        public ShouldRetry ShouldRetry
+        {
+            get { return shouldRetry; }
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
+                }
+
+                shouldRetry = value;
+            }
+        }
+
+        /// <summary>
         /// The name of the collection in RavenDB that contains the projections.
         /// Defaults to the name of the projection type <typeparamref name="TProjection"/>.
         /// Is also used as the document name of the projector state in RavenCheckpoints collection.
@@ -103,7 +122,26 @@ namespace LiquidProjections.RavenDB
 
             foreach (IList<Transaction> batch in transactions.InBatchesOf(batchSize))
             {
-                await ProjectTransactionBatch(batch).ConfigureAwait(false);
+                await ExecuteWithRetry(() => ProjectTransactionBatch(batch)).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteWithRetry(Func<Task> action)
+        {
+            for (int attempt = 1;;attempt++)
+            {
+                try
+                {
+                    await action();
+                    break;
+                }
+                catch (ProjectionException exception)
+                {
+                    if (!ShouldRetry(exception, attempt))
+                    {
+                        throw;
+                    }
+                }
             }
         }
 

@@ -62,6 +62,7 @@
     </Compile>
     <Compile Include="App_Packages\FluidCaching.Sources\FluidCaching.cs" />
     <Compile Include="EnumerableExtensions.cs" />
+    <Compile Include="ShouldRetry.cs" />
     <Compile Include="IHaveIdentity.cs" />
     <Compile Include="INHibernateChildProjector.cs" />
     <Compile Include="IProjectorState.cs" />
