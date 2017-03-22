@@ -10,7 +10,7 @@ namespace LiquidProjections
     public class MemoryEventSource : IEventStore
     {
         private readonly int batchSize;
-        private static long lastCheckpoint;
+        private long lastCheckpoint;
 
         private readonly List<Subscriber> subscribers = new List<Subscriber>();
         private readonly List<Transaction> history = new List<Transaction>();
