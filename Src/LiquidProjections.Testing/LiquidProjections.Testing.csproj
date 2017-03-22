@@ -46,7 +46,7 @@
       <Link>SharedAssemblyInfo.cs</Link>
     </Compile>
     <Compile Include="EnumerableExtensions.cs" />
-    <Compile Include="InMemoryEventStore.cs" />
+    <Compile Include="MemoryEventSource.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
