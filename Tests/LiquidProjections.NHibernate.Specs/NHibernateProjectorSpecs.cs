@@ -1198,13 +1198,16 @@ namespace LiquidProjections.NHibernate.Specs
 
                     Subject.ShouldRetry = (exception, attempts) =>
                     {
-                        numerOfFailedAttempts = attempts;
-                        if (attempts <= NumberOfTimesToFail)
+                        return Task.Run(() =>
                         {
-                            return true;
-                        }
+                            numerOfFailedAttempts = attempts;
+                            if (attempts <= NumberOfTimesToFail)
+                            {
+                                return true;
+                            }
 
-                        return false;
+                            return false;
+                        });
                     };
 
                     UseThe(new Transaction

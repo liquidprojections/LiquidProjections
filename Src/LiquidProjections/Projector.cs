@@ -9,7 +9,7 @@ namespace LiquidProjections
     {
         private readonly IEventMap<ProjectionContext> map;
         private readonly IReadOnlyList<Projector> children;
-        private ShouldRetry shouldRetry = (exception, count) => false;
+        private ShouldRetry shouldRetry = (exception, count) => Task.FromResult(false);
 
         public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder, IEnumerable<Projector> children = null)
         {
@@ -75,7 +75,7 @@ namespace LiquidProjections
                 }
                 catch (ProjectionException exception)
                 {
-                    if (!ShouldRetry(exception, attempt))
+                    if (!await ShouldRetry(exception, attempt))
                     {
                         throw;
                     }
