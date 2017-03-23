@@ -20,7 +20,7 @@ namespace LiquidProjections.RavenDB
         private readonly Func<IAsyncDocumentSession> sessionFactory;
         private int batchSize;
         private readonly RavenEventMapConfigurator<TProjection> mapConfigurator;
-        private ShouldRetry shouldRetry = (exception, count) => false;
+        private ShouldRetry shouldRetry = (exception, count) => Task.FromResult(false);
 
         /// <summary>
         /// Creates a new instance of <see cref="RavenProjector{TProjection}"/>.
@@ -137,7 +137,7 @@ namespace LiquidProjections.RavenDB
                 }
                 catch (ProjectionException exception)
                 {
-                    if (!ShouldRetry(exception, attempt))
+                    if (!await ShouldRetry(exception, attempt))
                     {
                         throw;
                     }

@@ -24,7 +24,7 @@ namespace LiquidProjections.NHibernate
         private readonly NHibernateEventMapConfigurator<TProjection, TKey> mapConfigurator;
         private int batchSize = 1;
         private string stateKey = typeof(TProjection).Name;
-        private ShouldRetry shouldRetry = (exception, count) => false;
+        private ShouldRetry shouldRetry = (exception, count) => Task.FromResult(false);
 
         /// <summary>
         /// Creates a new instance of <see cref="NHibernateProjector{TProjection,TKey,TState}"/>.
@@ -127,7 +127,7 @@ namespace LiquidProjections.NHibernate
                 }
                 catch (ProjectionException exception)
                 {
-                    if (!ShouldRetry(exception, attempt))
+                    if (!await ShouldRetry(exception, attempt))
                     {
                         throw;
                     }

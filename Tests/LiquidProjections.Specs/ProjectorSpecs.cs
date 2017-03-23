@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
 using Xunit;
@@ -279,13 +280,16 @@ namespace LiquidProjections.Specs
 
                     Subject.ShouldRetry = (exception, attempts) =>
                     {
-                        numerOfFailedAttempts = attempts;
-                        if (attempts <= NumberOfTimesToFail)
+                        return Task.Run(() =>
                         {
-                            return true;
-                        }
+                            numerOfFailedAttempts = attempts;
+                            if (attempts <= NumberOfTimesToFail)
+                            {
+                                return true;
+                            }
 
-                        return false;
+                            return false;
+                        });
                     };
 
                     UseThe(new Transaction
