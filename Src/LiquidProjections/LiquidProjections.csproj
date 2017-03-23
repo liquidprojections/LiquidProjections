@@ -74,6 +74,7 @@
     <Compile Include="Projector.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="ProjectionException.cs" />
+    <Compile Include="ShouldRetry.cs" />
     <Compile Include="TrackingService.cs" />
     <Compile Include="Transaction.cs" />
   </ItemGroup>

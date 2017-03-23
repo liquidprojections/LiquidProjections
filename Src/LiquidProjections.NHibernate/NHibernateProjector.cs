@@ -24,6 +24,7 @@ namespace LiquidProjections.NHibernate
         private readonly NHibernateEventMapConfigurator<TProjection, TKey> mapConfigurator;
         private int batchSize = 1;
         private string stateKey = typeof(TProjection).Name;
+        private ShouldRetry shouldRetry = (exception, count) => false;
 
         /// <summary>
         /// Creates a new instance of <see cref="NHibernateProjector{TProjection,TKey,TState}"/>.
@@ -81,6 +82,24 @@ namespace LiquidProjections.NHibernate
         }
 
         /// <summary>
+        /// A delegate that will be executed when projecting a batch of transactions fails.
+        /// This delegate returns a value that indicates if the action should be retried.
+        /// </summary>
+        public ShouldRetry ShouldRetry
+        {
+            get { return shouldRetry; }
+            set
+            {
+                if (value == null)
+                {
+                    throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
+                }
+
+                shouldRetry = value;
+            }
+        }
+
+        /// <summary>
         /// Instructs the projector to project a collection of ordered transactions asynchronously
         /// in batches of the configured size <see cref="BatchSize"/>.
         /// </summary>
@@ -93,7 +112,26 @@ namespace LiquidProjections.NHibernate
 
             foreach (IList<Transaction> batch in transactions.InBatchesOf(BatchSize))
             {
-                await ProjectTransactionBatch(batch).ConfigureAwait(false);
+                await ExecuteWithRetry(() => ProjectTransactionBatch(batch)).ConfigureAwait(false);
+            }
+        }
+
+        private async Task ExecuteWithRetry(Func<Task> action)
+        {
+            for (int attempt = 1;;attempt++)
+            {
+                try
+                {
+                    await action();
+                    break;
+                }
+                catch (ProjectionException exception)
+                {
+                    if (!ShouldRetry(exception, attempt))
+                    {
+                        throw;
+                    }
+                }
             }
         }
 

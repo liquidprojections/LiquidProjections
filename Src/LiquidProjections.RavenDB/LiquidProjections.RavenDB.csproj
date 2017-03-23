@@ -74,6 +74,7 @@
     <Compile Include="RavenProjectionContext.cs" />
     <Compile Include="RavenProjector.cs" />
     <Compile Include="RavenTrackingStore.cs" />
+    <Compile Include="ShouldRetry.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\LiquidProjections\LiquidProjections.csproj">
