@@ -13,13 +13,13 @@
         <releaseNotes/>
       <dependencies>
         <group>
-			<dependency id="LiquidProjections" version="0.1.0-unstable0057"/>
+			<dependency id="LiquidProjections" version="$nugetversion$"/>
 		</group>
       </dependencies>
     </metadata>
     <files>
-        <file src="..\..\Artifacts\LiquidProjections.Testing.dll" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.Testing.pdb" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.Testing.xml" target="lib\net452" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.Testing.dll" target="lib\netstandard1.1" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.Testing.pdb" target="lib\netstandard1.1" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.Testing.xml" target="lib\netstandard1.1" />
     </files>
 </package>

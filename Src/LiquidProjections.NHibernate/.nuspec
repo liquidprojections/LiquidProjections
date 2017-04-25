@@ -5,7 +5,7 @@
         <version>0.0.0.0</version>
         <authors>Dennis Doomen</authors>
         <owners>Dennis Doomen</owners>
-        <projectUrl>https://github.com/dennisdoomen/LiquidProjections</projectUrl>
+        <projectUrl>https://github.com/LiquidProjections/LiquidProjections</projectUrl>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
         <description>An extension to LiquidProjections that uses NHibernate for storing projections.</description>
         <tags></tags>
@@ -14,13 +14,13 @@
       <dependencies>
         <group>
 			<dependency id="NHibernate" version="[4.0, 5.0)" />
-			<dependency id="LiquidProjections" version="0.1.0-unstable0057"/>
+			<dependency id="LiquidProjections" version="$nugetversion$"/>
 		</group>
       </dependencies>
     </metadata>
     <files>
-        <file src="..\..\Artifacts\LiquidProjections.NHibernate.dll" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.NHibernate.pdb" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.NHibernate.xml" target="lib\net452" />
+        <file src="bin\release\LiquidProjections.NHibernate.dll" target="lib\net45" />
+        <file src="bin\release\LiquidProjections.NHibernate.pdb" target="lib\net45" />
+        <file src="bin\release\LiquidProjections.NHibernate.xml" target="lib\net45" />
     </files>
 </package>

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using LiquidProjections.Logging;
 
 namespace LiquidProjections
@@ -41,7 +40,7 @@ namespace LiquidProjections
                         }
                         catch (Exception exception)
                         {
-                            LogProvider.GetCurrentClassLogger().FatalException(
+                            LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
                                 "Projector exception was not handled. Event subscription has been cancelled.",
                                 exception);
 
