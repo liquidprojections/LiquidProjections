@@ -98,7 +98,7 @@
       <Name>LiquidProjections.NEventStore</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
-      <Project>{20506F22-9A20-4C07-B3DF-163CA338030F}</Project>
+      <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
   </ItemGroup>

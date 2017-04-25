@@ -6,7 +6,6 @@ namespace LiquidProjections
     /// <summary>
     /// Represents a single event including its headers.
     /// </summary>
-    [Serializable]
     public class EventEnvelope
     {
         /// <summary>

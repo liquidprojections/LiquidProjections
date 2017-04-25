@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>LiquidProjections.ExampleHost</RootNamespace>
     <AssemblyName>LiquidProjections.ExampleHost</AssemblyName>
-    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -65,17 +65,14 @@
       <HintPath>..\..\packages\AutoFixture.3.50.2\lib\net40\Ploeh.AutoFixture.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Raven.Abstractions, Version=3.5.1.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Database.3.5.1\lib\net45\Raven.Abstractions.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Raven.Abstractions, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\RavenDB.Database.3.5.3\lib\net45\Raven.Abstractions.dll</HintPath>
     </Reference>
-    <Reference Include="Raven.Client.Lightweight, Version=3.5.1.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Client.3.5.1\lib\net45\Raven.Client.Lightweight.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Raven.Client.Lightweight, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\RavenDB.Client.3.5.3\lib\net45\Raven.Client.Lightweight.dll</HintPath>
     </Reference>
-    <Reference Include="Raven.Database, Version=3.5.1.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Database.3.5.1\lib\net45\Raven.Database.dll</HintPath>
-      <Private>True</Private>
+    <Reference Include="Raven.Database, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\RavenDB.Database.3.5.3\lib\net45\Raven.Database.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -137,14 +134,10 @@
     <Compile Include="TinyIocWebApiDependencyResolver.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\packages\RavenDB.Database.3.5.1\tools\Raven.Studio.Html5.zip">
+    <None Include="..\..\packages\RavenDB.Database.3.5.3\tools\Raven.Studio.Html5.zip">
       <Link>Raven.Studio.Html5.zip</Link>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="App.config" />
-    <None Include="ExampleEvents.zip">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -153,11 +146,11 @@
       <Name>LiquidProjections.NEventStore</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.RavenDB\LiquidProjections.RavenDB.csproj">
-      <Project>{fbe5fb82-a7ec-4d30-9295-08d107f448bb}</Project>
+      <Project>{a3d8a417-f59c-476c-8f5e-f873390797fc}</Project>
       <Name>LiquidProjections.RavenDB</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
-      <Project>{20506f22-9a20-4c07-b3df-163ca338030f}</Project>
+      <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
   </ItemGroup>
