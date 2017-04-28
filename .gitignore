@@ -174,3 +174,8 @@ Artifacts/**
 
 # User-specific stuff:
 .idea
+
+# Cake related
+Build/**
+!Build/packages.config
+Tools/**

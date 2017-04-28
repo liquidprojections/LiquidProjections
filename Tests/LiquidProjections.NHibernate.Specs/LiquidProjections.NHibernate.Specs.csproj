@@ -105,11 +105,11 @@
       <Name>LiquidProjections.NHibernate</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.Testing\LiquidProjections.Testing.csproj">
-      <Project>{52964000-5aa0-4138-9089-3fddec70ebb0}</Project>
+      <Project>{b4ea7831-8282-4f3a-a057-2deb59611a68}</Project>
       <Name>LiquidProjections.Testing</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
-      <Project>{20506f22-9a20-4c07-b3df-163ca338030f}</Project>
+      <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
   </ItemGroup>
