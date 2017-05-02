@@ -14,13 +14,16 @@
       <dependencies>
         <group>
 			<dependency id="RavenDB.Client" version="[3.0, 4.0)"/>
-			<dependency id="LiquidProjections" version="0.1.0-unstable0057"/>
+			<dependency id="LiquidProjections" version="$nugetversion$"/>
 		</group>
       </dependencies>
     </metadata>
     <files>
-        <file src="..\..\Artifacts\LiquidProjections.RavenDB.dll" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.RavenDB.pdb" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.RavenDB.xml" target="lib\net452" />
+        <file src="bin\release\net45\LiquidProjections.RavenDB.dll" target="lib\net45" />
+        <file src="bin\release\net45\LiquidProjections.RavenDB.pdb" target="lib\net45" />
+        <file src="bin\release\net45\LiquidProjections.RavenDB.xml" target="lib\net45" />
+        <file src="bin\release\netstandard1.3\LiquidProjections.RavenDB.dll" target="lib\netstandard1.3" />
+        <file src="bin\release\netstandard1.3\LiquidProjections.RavenDB.pdb" target="lib\netstandard1.3" />
+        <file src="bin\release\netstandard1.3\LiquidProjections.RavenDB.xml" target="lib\netstandard1.3" />
     </files>
 </package>

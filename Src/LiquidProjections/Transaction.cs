@@ -6,7 +6,6 @@ namespace LiquidProjections
     /// <summary>
     /// Represents a collection of events that have happened within the same transactional boundary. 
     /// </summary>
-    [Serializable]
     public class Transaction
     {
         public Transaction()

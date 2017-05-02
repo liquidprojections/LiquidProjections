@@ -5,22 +5,22 @@
         <version>0.0.0.0</version>
         <authors>Dennis Doomen</authors>
         <owners>Dennis Doomen</owners>
-        <projectUrl>https://github.com/dennisdoomen/LiquidProjections</projectUrl>
+        <projectUrl>https://github.com/LiquidProjections/LiquidProjections</projectUrl>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
-        <description>Projections library</description>
-        <tags></tags>
+        <description>Adds support for NEventStore as a source of events for LiquidProjections</description>
+        <tags>NEventStore; event-sourcing</tags>
         <frameworkAssemblies />
         <releaseNotes/>
       <dependencies>
         <group>
 			<dependency id="NEventStore" version="[5.0, 6.0)"/>
-			<dependency id="LiquidProjections" version="0.1.0-unstable0057"/>
+			<dependency id="LiquidProjections" version="$nugetversion$"/>
 		</group>
       </dependencies>
     </metadata>
     <files>
-        <file src="..\..\Artifacts\LiquidProjections.NEventStore.dll" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.NEventStore.pdb" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.NEventStore.xml" target="lib\net452" />
+        <file src="bin\release\LiquidProjections.NEventStore.dll" target="lib\net45" />
+        <file src="bin\release\LiquidProjections.NEventStore.pdb" target="lib\net45" />
+        <file src="bin\release\LiquidProjections.NEventStore.xml" target="lib\net45" />
     </files>
 </package>

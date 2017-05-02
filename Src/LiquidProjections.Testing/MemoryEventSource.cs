@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -123,7 +124,7 @@ namespace LiquidProjections
             {
                 foreach (var batch in transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).InBatchesOf(batchSize))
                 {
-                    await handler(batch.ToList().AsReadOnly()).ConfigureAwait(false);
+                    await handler(new ReadOnlyCollection<Transaction>(batch.ToList())).ConfigureAwait(false);
                 }
             }
         }

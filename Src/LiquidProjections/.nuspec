@@ -5,21 +5,20 @@
         <version>0.0.0.0</version>
         <authors>Dennis Doomen</authors>
         <owners>Dennis Doomen</owners>
-        <projectUrl>https://github.com/dennisdoomen/LiquidProjections</projectUrl>
+        <projectUrl>https://github.com/liquidprojections/LiquidProjections</projectUrl>
         <requireLicenseAcceptance>false</requireLicenseAcceptance>
-        <description>Projections library</description>
-        <tags></tags>
+        <description>Defines a light-weight abstraction on top of an event store and allows mapping these to projection code using a fluent API.</description>
+        <tags>event-sourcing; projections; ddd</tags>
         <frameworkAssemblies />
         <releaseNotes/>
       <dependencies>
         <group>
-
-		</group>
+    		</group>
       </dependencies>
     </metadata>
     <files>
-        <file src="..\..\Artifacts\LiquidProjections.dll" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.pdb" target="lib\net452" />
-        <file src="..\..\Artifacts\LiquidProjections.xml" target="lib\net452" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.dll" target="lib\netstandard1.1" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.pdb" target="lib\netstandard1.1" />
+        <file src="bin\release\netstandard1.1\LiquidProjections.xml" target="lib\netstandard1.1" />
     </files>
 </package>

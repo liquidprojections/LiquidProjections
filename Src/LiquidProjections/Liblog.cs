@@ -1,9 +1,9 @@
-//===============================================================================
+﻿//===============================================================================
 // LibLog
 //
 // https://github.com/damianh/LibLog
 //===============================================================================
-// Copyright Â© 2011-2015 Damian Hickey.  All rights reserved.
+// Copyright © 2011-2015 Damian Hickey.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -39,14 +39,15 @@
 #pragma warning disable 1591
 
 using System.Diagnostics.CodeAnalysis;
+using LiquidProjections.Logging.LogProviders;
 
-[assembly: SuppressMessage("Microsoft.Design", "CA1020:AvoidNamespacesWithFewTypes", Scope = "namespace", Target = "LiquidProjections.Logging")]
-[assembly: SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed", Scope = "member", Target = "LiquidProjections.Logging.Logger.#Invoke(LiquidProjections.Logging.LogLevel,System.Func`1<System.String>,System.Exception,System.Object[])")]
+[assembly: SuppressMessage("Microsoft.Design", "CA1020:AvoidNamespacesWithFewTypes", Scope = "namespace", Target = "YourRootNamespace.Logging")]
+[assembly: SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed", Scope = "member", Target = "YourRootNamespace.Logging.Logger.#Invoke(YourRootNamespace.Logging.LogLevel,System.Func`1<System.String>,System.Exception,System.Object[])")]
 
 // If you copied this file manually, you need to change all "YourRootNameSpace" so not to clash with other libraries
 // that use LibLog
 #if LIBLOG_PROVIDERS_ONLY
-namespace LiquidProjections.LibLog
+namespace YourRootNamespace.LibLog
 #else
 namespace LiquidProjections.Logging
 #endif
@@ -54,7 +55,7 @@ namespace LiquidProjections.Logging
     using System.Collections.Generic;
     using System.Diagnostics.CodeAnalysis;
 #if LIBLOG_PROVIDERS_ONLY
-    using LiquidProjections.LibLog.LogProviders;
+    using YourRootNamespace.LibLog.LogProviders;
 #else
     using LiquidProjections.Logging.LogProviders;
 #endif
@@ -98,7 +99,7 @@ namespace LiquidProjections.Logging
         /// 
         /// To check IsEnabled call Log with only LogLevel and check the return value, no event will be written.
         /// </remarks>
-        bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters );
+        bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters);
     }
 #endif
 
@@ -121,6 +122,9 @@ namespace LiquidProjections.Logging
     }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
 #if LIBLOG_PUBLIC
     public
 #else
@@ -178,6 +182,16 @@ namespace LiquidProjections.Logging
             }
         }
 
+        public static void Debug(this ILog logger, string message, params object[] args)
+        {
+            logger.DebugFormat(message, args);
+        }
+
+        public static void Debug(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.DebugException(message, exception, args);
+        }
+
         public static void DebugFormat(this ILog logger, string message, params object[] args)
         {
             if (logger.IsDebugEnabled())
@@ -216,6 +230,16 @@ namespace LiquidProjections.Logging
             }
         }
 
+        public static void Error(this ILog logger, string message, params object[] args)
+        {
+            logger.ErrorFormat(message, args);
+        }
+
+        public static void Error(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.ErrorException(message, exception, args);
+        }
+
         public static void ErrorFormat(this ILog logger, string message, params object[] args)
         {
             if (logger.IsErrorEnabled())
@@ -243,6 +267,16 @@ namespace LiquidProjections.Logging
             {
                 logger.Log(LogLevel.Fatal, message.AsFunc());
             }
+        }
+
+        public static void Fatal(this ILog logger, string message, params object[] args)
+        {
+            logger.FatalFormat(message, args);
+        }
+
+        public static void Fatal(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.FatalException(message, exception, args);
         }
 
         public static void FatalFormat(this ILog logger, string message, params object[] args)
@@ -275,6 +309,16 @@ namespace LiquidProjections.Logging
             }
         }
 
+        public static void Info(this ILog logger, string message, params object[] args)
+        {
+            logger.InfoFormat(message, args);
+        }
+
+        public static void Info(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.InfoException(message, exception, args);
+        }
+
         public static void InfoFormat(this ILog logger, string message, params object[] args)
         {
             if (logger.IsInfoEnabled())
@@ -305,6 +349,16 @@ namespace LiquidProjections.Logging
             }
         }
 
+        public static void Trace(this ILog logger, string message, params object[] args)
+        {
+            logger.TraceFormat(message, args);
+        }
+
+        public static void Trace(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.TraceException(message, exception, args);
+        }
+
         public static void TraceFormat(this ILog logger, string message, params object[] args)
         {
             if (logger.IsTraceEnabled())
@@ -333,6 +387,16 @@ namespace LiquidProjections.Logging
             {
                 logger.Log(LogLevel.Warn, message.AsFunc());
             }
+        }
+
+        public static void Warn(this ILog logger, string message, params object[] args)
+        {
+            logger.WarnFormat(message, args);
+        }
+
+        public static void Warn(this ILog logger, Exception exception, string message, params object[] args)
+        {
+            logger.WarnException(message, exception, args);
         }
 
         public static void WarnFormat(this ILog logger, string message, params object[] args)
@@ -414,6 +478,9 @@ namespace LiquidProjections.Logging
     /// <summary>
     /// Provides a mechanism to create instances of <see cref="ILog" /> objects.
     /// </summary>
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
 #if LIBLOG_PROVIDERS_ONLY
     internal
 #else
@@ -588,31 +655,31 @@ namespace LiquidProjections.Logging
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
-    internal
+        internal
 #endif
     delegate bool IsLoggerAvailable();
 
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
-    internal
+        internal
 #endif
     delegate ILogProvider CreateLogProvider();
 
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
-    internal
+        internal
 #endif
     static readonly List<Tuple<IsLoggerAvailable, CreateLogProvider>> LogProviderResolvers =
-            new List<Tuple<IsLoggerAvailable, CreateLogProvider>>
-        {
+                new List<Tuple<IsLoggerAvailable, CreateLogProvider>>
+            {
             new Tuple<IsLoggerAvailable, CreateLogProvider>(SerilogLogProvider.IsLoggerAvailable, () => new SerilogLogProvider()),
             new Tuple<IsLoggerAvailable, CreateLogProvider>(NLogLogProvider.IsLoggerAvailable, () => new NLogLogProvider()),
             new Tuple<IsLoggerAvailable, CreateLogProvider>(Log4NetLogProvider.IsLoggerAvailable, () => new Log4NetLogProvider()),
             new Tuple<IsLoggerAvailable, CreateLogProvider>(EntLibLogProvider.IsLoggerAvailable, () => new EntLibLogProvider()),
             new Tuple<IsLoggerAvailable, CreateLogProvider>(LoupeLogProvider.IsLoggerAvailable, () => new LoupeLogProvider()),
-        };
+            };
 
 #if !LIBLOG_PROVIDERS_ONLY
         private static void RaiseOnCurrentLogProviderSet()
@@ -653,6 +720,9 @@ namespace LiquidProjections.Logging
         }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class NoOpLogger : ILog
         {
             internal static readonly NoOpLogger Instance = new NoOpLogger();
@@ -666,6 +736,9 @@ namespace LiquidProjections.Logging
     }
 
 #if !LIBLOG_PROVIDERS_ONLY
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class LoggerExecutionWrapper : ILog
     {
         private readonly Logger _logger;
@@ -714,7 +787,7 @@ namespace LiquidProjections.Logging
 }
 
 #if LIBLOG_PROVIDERS_ONLY
-namespace LiquidProjections.LibLog.LogProviders
+namespace YourRootNamespace.LibLog.LogProviders
 #else
 namespace LiquidProjections.Logging.LogProviders
 #endif
@@ -734,6 +807,9 @@ namespace LiquidProjections.Logging.LogProviders
 #endif
     using System.Text.RegularExpressions;
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal abstract class LogProviderBase : ILogProvider
     {
         protected delegate IDisposable OpenNdc(string message);
@@ -774,6 +850,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class NLogLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -855,6 +934,9 @@ namespace LiquidProjections.Logging.LogProviders
             return Expression.Lambda<Func<string, object>>(methodCall, nameParam).Compile();
         }
 
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class NLogLogger
         {
             private readonly dynamic _logger;
@@ -959,7 +1041,7 @@ namespace LiquidProjections.Logging.LogProviders
                     return false;
                 }
 
-                if(exception != null)
+                if (exception != null)
                 {
                     return LogException(logLevel, messageFunc, exception);
                 }
@@ -1117,6 +1199,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class Log4NetLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -1225,6 +1310,9 @@ namespace LiquidProjections.Logging.LogProviders
             return Expression.Lambda<Func<string, object>>(methodCall, nameParam).Compile();
         }
 
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class Log4NetLogger
         {
             private readonly dynamic _logger;
@@ -1492,6 +1580,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class EntLibLogProvider : LogProviderBase
     {
         private const string TypeTemplate = "Microsoft.Practices.EnterpriseLibrary.Logging.{0}, Microsoft.Practices.EnterpriseLibrary.Logging";
@@ -1598,16 +1689,19 @@ namespace LiquidProjections.Logging.LogProviders
                 Expression.Bind(entryType.GetPropertyPortable("Severity"), severityParameter),
                 Expression.Bind(
                     entryType.GetPropertyPortable("TimeStamp"),
-                    Expression.Property(null, typeof (DateTime).GetPropertyPortable("UtcNow"))),
+                    Expression.Property(null, typeof(DateTime).GetPropertyPortable("UtcNow"))),
                 Expression.Bind(
                     entryType.GetPropertyPortable("Categories"),
                     Expression.ListInit(
-                        Expression.New(typeof (List<string>)),
-                        typeof (List<string>).GetMethodPortable("Add", typeof (string)),
+                        Expression.New(typeof(List<string>)),
+                        typeof(List<string>).GetMethodPortable("Add", typeof(string)),
                         logNameParameter)));
             return memberInit;
         }
 
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class EntLibLogger
         {
             private readonly string _loggerName;
@@ -1666,6 +1760,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class SerilogLogProvider : LogProviderBase
     {
         private readonly Func<string, object> _getLoggerByNameDelegate;
@@ -1709,11 +1806,11 @@ namespace LiquidProjections.Logging.LogProviders
 
         private static Func<string, string, IDisposable> GetPushProperty()
         {
-            Type ndcContextType = Type.GetType("Serilog.Context.LogContext, Serilog") ?? 
+            Type ndcContextType = Type.GetType("Serilog.Context.LogContext, Serilog") ??
                                   Type.GetType("Serilog.Context.LogContext, Serilog.FullNetFx");
 
             MethodInfo pushPropertyMethod = ndcContextType.GetMethodPortable(
-                "PushProperty", 
+                "PushProperty",
                 typeof(string),
                 typeof(object),
                 typeof(bool));
@@ -1730,7 +1827,7 @@ namespace LiquidProjections.Logging.LogProviders
                     valueParam,
                     destructureObjectParam)
                 .Compile();
-            
+
             return (key, value) => pushProperty(key, value, false);
         }
 
@@ -1748,7 +1845,7 @@ namespace LiquidProjections.Logging.LogProviders
             ParameterExpression destructureObjectsParam = Expression.Parameter(typeof(bool), "destructureObjects");
             MethodCallExpression methodCall = Expression.Call(null, method, new Expression[]
             {
-                propertyNameParam, 
+                propertyNameParam,
                 valueParam,
                 destructureObjectsParam
             });
@@ -1761,6 +1858,9 @@ namespace LiquidProjections.Logging.LogProviders
             return name => func("SourceContext", name, false);
         }
 
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class SerilogLogger
         {
             private readonly object _logger;
@@ -1819,7 +1919,7 @@ namespace LiquidProjections.Logging.LogProviders
                     messageParam,
                     propertyValuesParam);
                 var expression = Expression.Lambda<Action<object, object, string, object[]>>(
-                    writeMethodExp, 
+                    writeMethodExp,
                     instanceParam,
                     levelParam,
                     messageParam,
@@ -1828,7 +1928,7 @@ namespace LiquidProjections.Logging.LogProviders
 
                 // Action<object, object, string, Exception> WriteException =
                 // (logger, level, exception, message) => { ((ILogger)logger).Write(level, exception, message, new object[]); }
-                MethodInfo writeExceptionMethodInfo = loggerType.GetMethodPortable("Write", 
+                MethodInfo writeExceptionMethodInfo = loggerType.GetMethodPortable("Write",
                     logEventLevelType,
                     typeof(Exception),
                     typeof(string),
@@ -1842,7 +1942,7 @@ namespace LiquidProjections.Logging.LogProviders
                     messageParam,
                     propertyValuesParam);
                 WriteException = Expression.Lambda<Action<object, object, Exception, string, object[]>>(
-                    writeMethodExp, 
+                    writeMethodExp,
                     instanceParam,
                     levelParam,
                     exceptionParam,
@@ -1911,6 +2011,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class LoupeLogProvider : LogProviderBase
     {
         /// <summary>
@@ -1978,13 +2081,16 @@ namespace LiquidProjections.Logging.LogProviders
 
             MethodInfo method = logManagerType.GetMethodPortable(
                 "Write",
-                logMessageSeverityType, typeof(string), typeof(int), typeof(Exception), typeof(bool), 
+                logMessageSeverityType, typeof(string), typeof(int), typeof(Exception), typeof(bool),
                 logWriteModeType, typeof(string), typeof(string), typeof(string), typeof(string), typeof(object[]));
 
             var callDelegate = (WriteDelegate)method.CreateDelegate(typeof(WriteDelegate));
             return callDelegate;
         }
 
+#if !LIBLOG_PORTABLE
+        [ExcludeFromCodeCoverage]
+#endif
         internal class LoupeLogger
         {
             private const string LogSystem = "LibLog";
@@ -2043,6 +2149,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal static class TraceEventTypeValues
     {
         internal static readonly Type Type;
@@ -2070,6 +2179,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal static class LogMessageFormatter
     {
         //private static readonly Regex Pattern = new Regex(@"\{@?\w{1,}\}");
@@ -2154,6 +2266,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal static class TypeExtensions
     {
         internal static ConstructorInfo GetConstructorPortable(this Type type, params Type[] types)
@@ -2243,6 +2358,9 @@ namespace LiquidProjections.Logging.LogProviders
         }
     }
 
+#if !LIBLOG_PORTABLE
+    [ExcludeFromCodeCoverage]
+#endif
     internal class DisposableAction : IDisposable
     {
         private readonly Action _onDispose;
@@ -2254,7 +2372,7 @@ namespace LiquidProjections.Logging.LogProviders
 
         public void Dispose()
         {
-            if(_onDispose != null)
+            if (_onDispose != null)
             {
                 _onDispose();
             }

@@ -1,14 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
-using System.Runtime.Serialization;
 
 namespace LiquidProjections
 {
     /// <summary>
     /// An exception describing an unrecoverable error in a projector.
     /// </summary>
-    [Serializable]
     public class ProjectionException : Exception
     {
         private EventEnvelope currentEvent;
@@ -24,18 +23,6 @@ namespace LiquidProjections
         public ProjectionException(string message, Exception inner)
             : base(message, inner)
         {
-        }
-
-        protected ProjectionException(SerializationInfo info, StreamingContext context)
-            : base(info, context)
-        {
-            CurrentEvent = (EventEnvelope)info.GetValue(nameof(CurrentEvent), typeof(EventEnvelope));
-            Projector = info.GetString(nameof(Projector));
-            ChildProjector = info.GetString(nameof(ChildProjector));
-            TransactionId = info.GetString(nameof(TransactionId));
-
-            TransactionBatch = (IReadOnlyList<Transaction>)info.GetValue(nameof(TransactionBatch),
-                typeof(IReadOnlyList<Transaction>));
         }
 
         public EventEnvelope CurrentEvent
@@ -115,18 +102,7 @@ namespace LiquidProjections
                 throw new ArgumentException("Transaction batch contains null transaction.", nameof(transactionBatch));
             }
 
-            TransactionBatch = transactionBatchCopy.AsReadOnly();
-        }
-
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-
-            info.AddValue(nameof(CurrentEvent), CurrentEvent);
-            info.AddValue(nameof(Projector), Projector);
-            info.AddValue(nameof(ChildProjector), ChildProjector);
-            info.AddValue(nameof(TransactionId), TransactionId);
-            info.AddValue(nameof(TransactionBatch), TransactionBatch);
+            TransactionBatch = new ReadOnlyCollection<Transaction>(transactionBatch.ToList());
         }
     }
 }
