@@ -9,7 +9,7 @@ using LiquidProjections.NEventStore.Logging;
 
 namespace LiquidProjections.NEventStore
 {
-    public class NEventStoreAdapter : IEventStore, IDisposable
+    public class NEventStoreAdapter : IDisposable
     {
         private readonly TimeSpan pollInterval;
         private readonly int maxPageSize;

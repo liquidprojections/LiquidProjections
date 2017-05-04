@@ -30,7 +30,7 @@ namespace LiquidProjections.ExampleHost
             EmbeddableDocumentStore store = BuildDocumentStore(".\\", 9001);
 
             container.Register<Func<IAsyncDocumentSession>>(() => store.OpenAsyncSession());
-            var dispatcher = new Dispatcher(eventStore);
+            var dispatcher = new Dispatcher(eventStore.Subscribe);
 
             var bootstrapper = new CountsProjector(dispatcher, store.OpenAsyncSession);
 

@@ -23,6 +23,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,6 +33,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Chill, Version=2.4.1.0, Culture=neutral, processorArchitecture=MSIL">
@@ -100,6 +102,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
+      <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
+      <Name>LiquidProjections.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.NHibernate\LiquidProjections.NHibernate.csproj">
       <Project>{f5953539-5c27-4a7c-89bd-7fbe4a67915a}</Project>
       <Name>LiquidProjections.NHibernate</Name>

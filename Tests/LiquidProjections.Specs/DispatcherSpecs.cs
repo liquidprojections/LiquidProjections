@@ -22,7 +22,7 @@ namespace LiquidProjections.Specs
                 Given(() =>
                 {
                     UseThe(new FakeEventStore());
-                    WithSubject(_ => new Dispatcher(The<FakeEventStore>()));
+                    WithSubject(_ => new Dispatcher(The<FakeEventStore>().Subscribe));
                     LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
                     UseThe(new ProjectionException("Some message."));
 
@@ -57,7 +57,7 @@ namespace LiquidProjections.Specs
             }
         }
 
-        internal class FakeEventStore : IEventStore
+        internal class FakeEventStore
         {
             private readonly object syncRoot = new object();
 

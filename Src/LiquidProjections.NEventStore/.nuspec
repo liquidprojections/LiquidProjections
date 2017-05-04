@@ -14,7 +14,7 @@
       <dependencies>
         <group>
 			<dependency id="NEventStore" version="[5.0, 6.0)"/>
-			<dependency id="LiquidProjections" version="$nugetversion$"/>
+			<dependency id="LiquidProjections.Abstractions" version="$nugetversion$"/>
 		</group>
       </dependencies>
     </metadata>

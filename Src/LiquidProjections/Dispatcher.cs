@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using LiquidProjections.Abstractions;
 using LiquidProjections.Logging;
 
 namespace LiquidProjections
 {
     public class Dispatcher
     {
-        private readonly IEventStore eventStore;
+        private readonly CreateSubscription createSubscription;
 
+        [Obsolete("The IEventStore interface has been replaced by the SubscribeToEvents delegate")]
         public Dispatcher(IEventStore eventStore)
         {
             if (eventStore == null)
@@ -16,7 +18,12 @@ namespace LiquidProjections
                 throw new ArgumentNullException(nameof(eventStore));
             }
 
-            this.eventStore = eventStore;
+            this.createSubscription = eventStore.Subscribe;
+        }
+
+        public Dispatcher(CreateSubscription createSubscription)
+        {
+            this.createSubscription = createSubscription;
         }
 
         public IDisposable Subscribe(long? checkpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
@@ -31,7 +38,7 @@ namespace LiquidProjections
 
             lock (subscriptionMonitor)
             {
-                subscription = eventStore.Subscribe(checkpoint,
+                subscription = createSubscription(checkpoint,
                     async transactions =>
                     {
                         try
