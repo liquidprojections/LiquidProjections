@@ -24,6 +24,7 @@
     <WarningLevel>4</WarningLevel>
     <UseVSHostingProcess>false</UseVSHostingProcess>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -35,6 +36,7 @@
     <WarningLevel>4</WarningLevel>
     <Prefer32Bit>false</Prefer32Bit>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.Owin, Version=3.0.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
@@ -141,6 +143,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
+      <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
+      <Name>LiquidProjections.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.NEventStore\LiquidProjections.NEventStore.csproj">
       <Project>{99faca9d-d5e8-4ef4-b552-eaea15b75b0d}</Project>
       <Name>LiquidProjections.NEventStore</Name>

@@ -10,12 +10,16 @@
     <DefineConstants>TRACE;DEBUG;NETSTANDARD1_1;LIBLOG_PORTABLE</DefineConstants>
     <DocumentationFile>bin\Debug\netstandard1.1\LiquidProjections.xml</DocumentationFile>
     <NoWarn>1701;1702;1705;1591</NoWarn>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DefineConstants>TRACE;RELEASE;LIBLOG_PORTABLE;NETSTANDARD1_1</DefineConstants>
     <DocumentationFile>bin\Release\netstandard1.1\LiquidProjections.xml</DocumentationFile>
     <NoWarn>1701;1702;1705;1591</NoWarn>
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <TreatSpecificWarningsAsErrors />
   </PropertyGroup>
 
   <ItemGroup>
@@ -25,6 +29,10 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.3.0" />
     <PackageReference Include="System.Dynamic.Runtime" Version="4.3.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj" />
   </ItemGroup>
 
 </Project>

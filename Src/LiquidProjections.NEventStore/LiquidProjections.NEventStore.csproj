@@ -71,6 +71,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
+      <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
+      <Name>LiquidProjections.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\LiquidProjections\LiquidProjections.csproj">
       <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
       <Name>LiquidProjections</Name>

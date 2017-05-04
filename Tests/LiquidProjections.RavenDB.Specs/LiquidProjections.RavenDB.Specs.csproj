@@ -25,6 +25,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,6 +35,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Chill, Version=2.4.1.0, Culture=neutral, processorArchitecture=MSIL">
@@ -95,6 +97,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
+      <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
+      <Name>LiquidProjections.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.RavenDB\LiquidProjections.RavenDB.csproj">
       <Project>{a3d8a417-f59c-476c-8f5e-f873390797fc}</Project>
       <Name>LiquidProjections.RavenDB</Name>

@@ -9,7 +9,7 @@ using Newtonsoft.Json;
 
 namespace LiquidProjections.ExampleHost
 {
-    public class JsonFileEventStore : IEventStore, IDisposable
+    public class JsonFileEventStore : IDisposable
     {
         private const int AverageEventsPerTransaction = 6;
         private readonly int pageSize;

@@ -37,12 +37,7 @@ namespace LiquidProjections
             get { return shouldRetry; }
             set
             {
-                if (value == null)
-                {
-                    throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
-                }
-
-                shouldRetry = value;
+                shouldRetry = value ?? throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
             }
         }
 

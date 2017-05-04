@@ -8,7 +8,7 @@ using LiquidProjections.Testing;
 
 namespace LiquidProjections
 {
-    public class MemoryEventSource : IEventStore
+    public class MemoryEventSource
     {
         private readonly int batchSize;
         private long lastCheckpoint;

@@ -21,6 +21,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -30,6 +31,7 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <LangVersion>6</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Chill, Version=2.4.1.0, Culture=neutral, processorArchitecture=MSIL">
@@ -93,6 +95,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
+      <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
+      <Name>LiquidProjections.Abstractions</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.NEventStore\LiquidProjections.NEventStore.csproj">
       <Project>{99faca9d-d5e8-4ef4-b552-eaea15b75b0d}</Project>
       <Name>LiquidProjections.NEventStore</Name>

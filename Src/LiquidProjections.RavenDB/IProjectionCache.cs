@@ -40,8 +40,9 @@ namespace LiquidProjections.RavenDB
         /// <summary>
         /// Removes the item identified by <paramref name="key"/> from the cache.
         /// </summary>
+        /// <remarks>
         /// This method must be safe in multi-threaded scenarios and be idempotent. 
-        /// </summary>
+        /// </remarks>
         void Remove(string key);
     }
 }

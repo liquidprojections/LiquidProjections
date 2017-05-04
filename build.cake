@@ -92,9 +92,20 @@ Task("Pack")
 	.IsDependentOn("Build")
     .Does(() => 
     {
+      NuGetPack("./src/LiquidProjections.Abstractions/.nuspec", new NuGetPackSettings {
+        OutputDirectory = "./Artifacts",
+        Version = gitVersion.NuGetVersionV2,
+		Properties = new Dictionary<string, string> {
+			{ "nugetversion", gitVersion.NuGetVersionV2 }
+		}
+      });        
+
       NuGetPack("./src/LiquidProjections/.nuspec", new NuGetPackSettings {
         OutputDirectory = "./Artifacts",
-        Version = gitVersion.NuGetVersionV2
+        Version = gitVersion.NuGetVersionV2,
+		Properties = new Dictionary<string, string> {
+			{ "nugetversion", gitVersion.NuGetVersionV2 }
+		}
       });        
 	  
 	  NuGetPack("./src/LiquidProjections.NEventStore/.nuspec", new NuGetPackSettings {
