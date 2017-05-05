@@ -13,11 +13,6 @@
         <tags>event-sourcing; projections; ddd</tags>
         <frameworkAssemblies />
         <releaseNotes/>
-      <dependencies>
-        <group>
-          <dependency id="LiquidProjections.Abstractions" version="$nugetversion$"/>
-    		</group>
-      </dependencies>
     </metadata>
     <files>
         <file src="bin\release\netstandard1.1\LiquidProjections.Abstractions.dll" target="lib\netstandard1.1" />
