@@ -147,10 +147,6 @@
       <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
       <Name>LiquidProjections.Abstractions</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\Src\LiquidProjections.NEventStore\LiquidProjections.NEventStore.csproj">
-      <Project>{99faca9d-d5e8-4ef4-b552-eaea15b75b0d}</Project>
-      <Name>LiquidProjections.NEventStore</Name>
-    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections.RavenDB\LiquidProjections.RavenDB.csproj">
       <Project>{a3d8a417-f59c-476c-8f5e-f873390797fc}</Project>
       <Name>LiquidProjections.RavenDB</Name>
