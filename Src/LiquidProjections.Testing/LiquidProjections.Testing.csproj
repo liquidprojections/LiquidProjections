@@ -24,7 +24,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj" />
-    <ProjectReference Include="..\LiquidProjections\LiquidProjections.csproj" />
   </ItemGroup>
 
 </Project>
