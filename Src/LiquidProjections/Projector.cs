@@ -12,6 +12,12 @@ namespace LiquidProjections
         private ShouldRetry shouldRetry = (exception, count) => Task.FromResult(false);
 
         public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder, IEnumerable<Projector> children = null)
+            : this(BuildMap(eventMapBuilder), children)
+        {
+            
+        }
+
+        private static IEventMap<ProjectionContext> BuildMap(IEventMapBuilder<ProjectionContext> eventMapBuilder)
         {
             if (eventMapBuilder == null)
             {
@@ -19,9 +25,14 @@ namespace LiquidProjections
             }
 
             SetupHandlers(eventMapBuilder);
-            map = eventMapBuilder.Build();
-            this.children = children?.ToList() ?? new List<Projector>();
+            return eventMapBuilder.Build();
+        }
 
+        public Projector(IEventMap<ProjectionContext> map, IEnumerable<Projector> children = null)
+        {
+            this.map = map;
+
+            this.children = children?.ToList() ?? new List<Projector>();
             if (this.children.Contains(null))
             {
                 throw new ArgumentException("There is null child projector.", nameof(children));
@@ -41,7 +52,7 @@ namespace LiquidProjections
             }
         }
 
-        private void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
+        private static void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
         {
             eventMapBuilder.HandleCustomActionsAs((context, projector) => projector());
         }

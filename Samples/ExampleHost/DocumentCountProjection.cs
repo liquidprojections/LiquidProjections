@@ -1,11 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using LiquidProjections.RavenDB;
 
 namespace LiquidProjections.ExampleHost
 {
-    public class DocumentCountProjection : IHaveIdentity
+    public class DocumentCountProjection : IEntity
     {
         public DocumentCountProjection()
         {
@@ -32,6 +31,7 @@ namespace LiquidProjections.ExampleHost
 
         public List<ValidityPeriod> Periods { get; set; }
         public string RestrictedArea { get; set; }
+        public string CountryName { get; set; }
 
         public ValidityPeriod GetOrAddPeriod(int sequence)
         {

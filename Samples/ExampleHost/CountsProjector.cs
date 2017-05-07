@@ -1,63 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Threading.Tasks;
 using LiquidProjections.ExampleHost.Events;
-using LiquidProjections.RavenDB;
-using Raven.Client;
 
 namespace LiquidProjections.ExampleHost
 {
     public class CountsProjector
     {
         private readonly Dispatcher dispatcher;
-        private readonly Func<IAsyncDocumentSession> sessionFactory;
-        private readonly Stopwatch stopwatch = new Stopwatch();
-        private long eventCount = 0;
-        private long transactionCount = 0;
-        private RavenProjector<DocumentCountProjection> documentProjector;
-        private RavenChildProjector<CountryLookup> countryProjector;
-        private readonly LruProjectionCache cache;
+        private readonly InMemoryDatabase store;
+        private ExampleProjector<DocumentCountProjection> documentCountProjector;
+        private ExampleProjector<CountryLookup> countryLookupProjector;
 
-        public CountsProjector(Dispatcher dispatcher, Func<IAsyncDocumentSession> sessionFactory)
+        public CountsProjector(Dispatcher dispatcher, InMemoryDatabase store)
         {
             this.dispatcher = dispatcher;
-            this.sessionFactory = sessionFactory;
-            cache = new LruProjectionCache(20000, TimeSpan.FromSeconds(30), TimeSpan.FromMinutes(2), () => DateTime.UtcNow);
+            this.store = store;
 
             BuildCountryProjector();
             BuildDocumentProjector();
         }
 
-        public async Task Start()
+        public void Start()
         {
-            long? lastCheckpoint = await documentProjector.GetLastCheckpoint();
-
-            stopwatch.Start();
-
-            dispatcher.Subscribe(lastCheckpoint, async transactions =>
+            dispatcher.Subscribe(null, async transactions =>
             {
-                await documentProjector.Handle(transactions);
-
-                transactionCount += transactions.Count;
-                eventCount += transactions.Sum(t => t.Events.Count);
-
-                long elapsedTotalSeconds = (long)stopwatch.Elapsed.TotalSeconds;
-
-                if ((transactionCount % 100 == 0) && (elapsedTotalSeconds > 0))
-                {
-                    int ratePerSecond = (int)(eventCount / elapsedTotalSeconds);
-
-                    Console.WriteLine($"{DateTime.Now}: Processed {eventCount} events " +
-                        $"(rate: {ratePerSecond}/second, hits: {cache.Hits}, Misses: {cache.Misses})");
-                }
+                await documentCountProjector.Handle(transactions);
             });
         }
 
         private void BuildDocumentProjector()
         {
-            var documentMapBuilder = new EventMapBuilder<DocumentCountProjection, string, RavenProjectionContext>();
+            var documentMapBuilder = new EventMapBuilder<DocumentCountProjection, string, ProjectionContext>();
 
             documentMapBuilder
                 .Map<WarrantAssignedEvent>()
@@ -67,6 +41,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "Warrant";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -78,6 +53,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "Certificate";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -89,6 +65,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "Constitution";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -100,6 +77,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "Audit";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -111,6 +89,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "Task";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -122,6 +101,7 @@ namespace LiquidProjections.ExampleHost
                     document.Type = "IsolationCertificate";
                     document.Kind = anEvent.Kind;
                     document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
                     document.State = anEvent.InitialState;
                 });
 
@@ -153,7 +133,11 @@ namespace LiquidProjections.ExampleHost
             documentMapBuilder
                 .Map<CountryCorrectedEvent>()
                 .AsUpdateOf(anEvent => anEvent.DocumentNumber)
-                .Using((document, anEvent) => document.Country = anEvent.Country);
+                .Using((document, anEvent) =>
+                {
+                    document.Country = anEvent.Country;
+                    document.CountryName = GetCountryName(anEvent.Country);
+                });
 
             documentMapBuilder
                 .Map<NextReviewScheduledEvent>()
@@ -226,29 +210,26 @@ namespace LiquidProjections.ExampleHost
                     period.Status = "Canceled";
                 });
 
-            documentProjector = new RavenProjector<DocumentCountProjection>(
-                sessionFactory,
-                documentMapBuilder,
-                new[] { countryProjector })
-            {
-                BatchSize = 20,
-                Cache = cache
-            };
+            documentCountProjector = 
+                new ExampleProjector<DocumentCountProjection>(documentMapBuilder, store, countryLookupProjector);
+        }
+
+        private string GetCountryName(Guid countryCode)
+        {
+            var lookup = store.GetRepository<CountryLookup>().Find(countryCode.ToString());
+            return (lookup != null) ? lookup.Name : "";
         }
 
         private void BuildCountryProjector()
         {
-            var countryMapBuilder = new EventMapBuilder<CountryLookup, string, RavenProjectionContext>();
+            var countryMapBuilder = new EventMapBuilder<CountryLookup, string, ProjectionContext>();
 
             countryMapBuilder
                 .Map<CountryRegisteredEvent>()
                 .AsCreateOf(anEvent => anEvent.Code)
                 .Using((country, anEvent) => country.Name = anEvent.Name);
 
-            countryProjector = new RavenChildProjector<CountryLookup>(countryMapBuilder)
-            {
-                Cache = cache
-            };
+            countryLookupProjector = new ExampleProjector<CountryLookup>(countryMapBuilder, store);
         }
 
         private static IEnumerable<ValidityPeriod> GetPreviousContiguousValidPeriods(List<ValidityPeriod> allPeriods,

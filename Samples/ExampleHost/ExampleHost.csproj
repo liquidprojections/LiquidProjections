@@ -67,15 +67,6 @@
       <HintPath>..\..\packages\AutoFixture.3.50.2\lib\net40\Ploeh.AutoFixture.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Reference Include="Raven.Abstractions, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Database.3.5.3\lib\net45\Raven.Abstractions.dll</HintPath>
-    </Reference>
-    <Reference Include="Raven.Client.Lightweight, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Client.3.5.3\lib\net45\Raven.Client.Lightweight.dll</HintPath>
-    </Reference>
-    <Reference Include="Raven.Database, Version=3.5.3.0, Culture=neutral, PublicKeyToken=37f41c7f99471593, processorArchitecture=MSIL">
-      <HintPath>..\..\packages\RavenDB.Database.3.5.3\lib\net45\Raven.Database.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
     <Reference Include="System.Core" />
@@ -122,34 +113,32 @@
     <Compile Include="Events\ValidityPeriodResetEvent.cs" />
     <Compile Include="Events\ValidityPeriodClosedEvent.cs" />
     <Compile Include="Events\LifetimeRestrictedEvent.cs" />
+    <Compile Include="ExampleProjector.cs" />
+    <Compile Include="InMemoryDatabase.cs" />
     <Compile Include="JsonFileEventStore.cs" />
     <Compile Include="Program.cs" />
+    <Compile Include="IEntity.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="DocumentCountProjection.cs" />
     <Compile Include="CountsProjector.cs" />
     <Compile Include="Events\WarrantAssignedEvent.cs" />
     <Compile Include="RealtimeStateEvaluator.cs" />
+    <Compile Include="Repository.cs" />
     <Compile Include="StatisticsController.cs" />
-    <Compile Include="Documents_ByDynamicState.cs" />
-    <Compile Include="Documents_CountsByStaticState.cs" />
     <Compile Include="TinyIoC.cs" />
     <Compile Include="TinyIocWebApiDependencyResolver.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\packages\RavenDB.Database.3.5.3\tools\Raven.Studio.Html5.zip">
-      <Link>Raven.Studio.Html5.zip</Link>
-    </None>
     <None Include="App.config" />
+    <None Include="ExampleEvents.zip">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Src\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj">
       <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
       <Name>LiquidProjections.Abstractions</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\Src\LiquidProjections.RavenDB\LiquidProjections.RavenDB.csproj">
-      <Project>{a3d8a417-f59c-476c-8f5e-f873390797fc}</Project>
-      <Name>LiquidProjections.RavenDB</Name>
     </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
       <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
