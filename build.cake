@@ -76,9 +76,6 @@ Task("Run-Unit-Tests")
 {
     XUnit2("./Tests/LiquidProjections.Specs/**/bin/" + configuration + "/*.Specs.dll", new XUnit2Settings {
         });
-
-	XUnit2("./Tests/LiquidProjections.RavenDB.Specs/**/bin/" + configuration + "/*.Specs.dll", new XUnit2Settings {
-        });
 });
 
 Task("Pack")
@@ -102,14 +99,6 @@ Task("Pack")
 		}
       });        
 	  	  
-	  NuGetPack("./src/LiquidProjections.RavenDB/.nuspec", new NuGetPackSettings {
-        OutputDirectory = "./Artifacts",
-        Version = gitVersion.NuGetVersionV2,
-				Properties = new Dictionary<string, string> {
-			{ "nugetversion", gitVersion.NuGetVersionV2 }
-		}
-      });  
-
 	  NuGetPack("./src/LiquidProjections.Testing/.nuspec", new NuGetPackSettings {
         OutputDirectory = "./Artifacts",
         Version = gitVersion.NuGetVersionV2,

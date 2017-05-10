@@ -1,8 +1,7 @@
-﻿using LiquidProjections.RavenDB;
-
+﻿
 namespace LiquidProjections.ExampleHost
 {
-    internal class CountryLookup : IHaveIdentity
+    internal class CountryLookup : IEntity
     {
         public string Id { get; set; }
         public string Name { get; set; }

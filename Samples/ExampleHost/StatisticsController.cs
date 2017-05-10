@@ -1,63 +1,84 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Raven.Client;
 
 namespace LiquidProjections.ExampleHost
 {
     [RoutePrefix("Statistics")]
     public class StatisticsController : ApiController
     {
-        private readonly Func<IAsyncDocumentSession> sessionFactory;
+        private readonly InMemoryDatabase database;
 
-        public StatisticsController(Func<IAsyncDocumentSession> sessionFactory)
+        public StatisticsController(InMemoryDatabase database)
         {
-            this.sessionFactory = sessionFactory;
+            this.database = database;
         }
 
         [Route("{CountsPerState}")]
         [HttpGet]
-        public async Task<dynamic> GetCountsPerState(Guid country, string kind)
+        public dynamic GetCountsPerState(Guid country, string kind)
         {
-            using (var session = sessionFactory())
-            {
-                var staticResults = await session
-                    .Query<Documents_CountsByStaticState.Result, Documents_CountsByStaticState>()
-                    .Where(x => x.Kind == kind && x.Country == country)
-                    .ToListAsync();
+            var query = 
+                from document in database.GetRepository<DocumentCountProjection>()
+                let dynamicStates = new[] { "Active" }
+                where document.Kind == kind && document.Country == country
+                where !dynamicStates.Contains(document.State)
+                group document by new { 
+                    Country = document.Country,
+                    document.CountryName,
+                    document.RestrictedArea,
+                    document.Kind,
+                    document.State }
+                into grp
+                select new Result
+                {
+                    Country = grp.Key.Country,
+                    CountryName = grp.Key.CountryName,
+                    AuthorizationArea = grp.Key.RestrictedArea,
+                    Kind = grp.Key.Kind,
+                    State = grp.Key.State,
+                    Count = grp.Count()
+                };
 
-                var stream = session
-                    .Query<Documents_ByDynamicState.Result, Documents_ByDynamicState>()
-                    .Where(x => x.Kind == kind && x.Country == country)
-                    .As<DocumentCountProjection>();
+            string countryName = database
+                .GetRepository<CountryLookup>()
+                .Single(x => x.Id == country.ToString()).Name;
 
-                string countryName = (await session.LoadAsync<CountryLookup>(country.ToString())).Name;
+            List<Result> staticResults = query.ToList();
+
+            var dynamicResults =
+                from document in database.GetRepository<DocumentCountProjection>()
+                let dynamicStates = new[] {"Active"}
+                where document.Kind == kind && document.Country == country
+                where dynamicStates.Contains(document.State)
+                select document;
 
                 var evaluator = new RealtimeStateEvaluator();
-
-                var iterator = await session.Advanced.StreamAsync(stream);
-                while (await iterator.MoveNextAsync())
+            
+                foreach (var document in dynamicResults.ToArray())
                 {
-                    DocumentCountProjection projection = iterator.Current.Document;
                     var actualState = evaluator.Evaluate(new RealtimeStateEvaluationContext
                     {
-                        StaticState = projection.State,
-                        Country = projection.Country,
-                        NextReviewAt = projection.NextReviewAt,
-                        PlannedPeriod = new ValidityPeriod(projection.StartDateTime, projection.EndDateTime),
-                        ExpirationDateTime = projection.LifetimePeriodEnd
+                        StaticState = document.State,
+                        Country = document.Country,
+                        NextReviewAt = document.NextReviewAt,
+                        PlannedPeriod = new ValidityPeriod(document.StartDateTime, document.EndDateTime),
+                        ExpirationDateTime = document.LifetimePeriodEnd
                     });
-
+            
                     var result = staticResults.SingleOrDefault(r => r.State == actualState);
                     if (result == null)
                     {
-                        result = new Documents_CountsByStaticState.Result
+                        result = new Result
                         {
-                            Kind = kind,
-                            Country = country,
+                            Country = document.Country,
                             CountryName = countryName,
-                            State = actualState,
+                            AuthorizationArea = document.RestrictedArea,
+                            Kind = document.Kind,
+                            State = document.State,
+                            Count = 0
                         };
 
                         staticResults.Add(result);
@@ -66,8 +87,22 @@ namespace LiquidProjections.ExampleHost
                     result.Count++;
                 }
 
-                return staticResults;
-            }
+            return staticResults;
+        }
+
+        public class Result
+        {
+            public Guid Country { get; set; }
+
+            public string CountryName { get; set; }
+
+            public string AuthorizationArea { get; set; }
+
+            public string Kind { get; set; }
+
+            public string State { get; set; }
+
+            public int Count { get; set; }
         }
     }
 }
