@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Linq;
 using System.Runtime.Serialization.Formatters;
 using System.Threading.Tasks;
+using LiquidProjections.Abstractions;
 using Newtonsoft.Json;
 
 namespace LiquidProjections.ExampleHost
@@ -25,9 +26,11 @@ namespace LiquidProjections.ExampleHost
             entryQueue = new Queue<ZipArchiveEntry>(zip.Entries.Where(e => e.Name.EndsWith(".json")));
         }
 
-        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Subscriber subscriber, string subscriptionId)
         {
-            var subscriber = new Subscriber(lastProcessedCheckpoint ?? 0, handler);
+            var subscription = new Subscription(
+                lastProcessedCheckpoint ?? 0, 
+                transactions => subscriber.HandleTransactions(transactions, null));
             
             Task.Run(async () =>
             {
@@ -39,13 +42,13 @@ namespace LiquidProjections.ExampleHost
                     // Start loading the next page on a separate thread while we have the subscriber handle the previous transactions.
                     loader = LoadNextPageAsync();
 
-                    await subscriber.Send(transactions);
+                    await subscription.Send(transactions);
 
                     transactions = await loader;
                 }
             });
 
-            return subscriber;
+            return subscription;
         }
 
         private Task<Transaction[]> LoadNextPageAsync()
@@ -105,13 +108,13 @@ namespace LiquidProjections.ExampleHost
             zip = null;
         }
 
-        internal class Subscriber : IDisposable
+        internal class Subscription : IDisposable
         {
             private readonly long lastProcessedCheckpoint;
             private readonly Func<IReadOnlyList<Transaction>, Task> handler;
             private bool disposed;
 
-            public Subscriber(long lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
+            public Subscription(long lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler)
             {
                 this.lastProcessedCheckpoint = lastProcessedCheckpoint;
                 this.handler = handler;
