@@ -72,7 +72,7 @@ namespace LiquidProjections.ExampleHost
                             Body = JsonConvert.DeserializeObject(json, new JsonSerializerSettings
                             {
                                 TypeNameHandling = TypeNameHandling.All,
-                                TypeNameAssemblyFormat = FormatterAssemblyStyle.Full
+                                TypeNameAssemblyFormatHandling = TypeNameAssemblyFormatHandling.Full
                             })
                         });
                     }
