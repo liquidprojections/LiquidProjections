@@ -23,7 +23,7 @@ namespace LiquidProjections.ExampleHost
 
         public void Start()
         {
-            dispatcher.Subscribe(null, async transactions =>
+            dispatcher.Subscribe(null, async (transactions, info) =>
             {
                 await documentCountProjector.Handle(transactions);
             });

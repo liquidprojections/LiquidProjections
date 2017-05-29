@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
+using LiquidProjections.Abstractions;
+using LiquidProjections.Testing;
 using Xunit;
 
 namespace LiquidProjections.Specs
@@ -27,7 +29,10 @@ namespace LiquidProjections.Specs
 
             protected void StartProjecting()
             {
-                The<MemoryEventSource>().Subscribe(110, Subject.Handle, "");
+                The<MemoryEventSource>().Subscribe(110, new Subscriber
+                {
+                    HandleTransactions = async (transactions, info) => await Subject.Handle(transactions)
+                }, "");
             }
         }
 
@@ -115,7 +120,7 @@ namespace LiquidProjections.Specs
                 When(async () =>
                 {
                     await The<MemoryEventSource>().Write(new ProductAddedToCatalogEvent());
-                }, deferedExecution: true);
+                }, deferredExecution: true);
             }
 
             [Fact]
@@ -230,7 +235,7 @@ namespace LiquidProjections.Specs
                     StartProjecting();
                 });
 
-                When(() => The<MemoryEventSource>().Write(The<Transaction>()), deferedExecution: true);
+                When(() => The<MemoryEventSource>().Write(The<Transaction>()), deferredExecution: true);
             }
 
             [Fact]

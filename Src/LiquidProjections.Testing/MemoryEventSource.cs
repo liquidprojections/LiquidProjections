@@ -4,16 +4,16 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
-using LiquidProjections.Testing;
+using LiquidProjections.Abstractions;
 
-namespace LiquidProjections
+namespace LiquidProjections.Testing
 {
     public class MemoryEventSource
     {
         private readonly int batchSize;
         private long lastCheckpoint;
 
-        private readonly List<Subscriber> subscribers = new List<Subscriber>();
+        private readonly List<Subscription> subscribers = new List<Subscription>();
         private readonly List<Transaction> history = new List<Transaction>();
 
         public MemoryEventSource(int batchSize = 10)
@@ -21,24 +21,33 @@ namespace LiquidProjections
             this.batchSize = batchSize;
         }
 
-        public IDisposable Subscribe(long? lastProcessedCheckpoint, Func<IReadOnlyList<Transaction>, Task> handler, string subscriptionId)
+        public IDisposable Subscribe(long? lastProcessedCheckpoint, Subscriber subscriber, string subscriptionId)
         {
             lastCheckpoint = lastProcessedCheckpoint ?? 0;
-            var subscriber = new Subscriber(lastCheckpoint, batchSize, handler);
+            var subscription = new Subscription(lastCheckpoint, batchSize, subscriber, subscriptionId);
 
-            subscribers.Add(subscriber);
+            subscribers.Add(subscription);
 
-            Func<Task> asyncAction = async () =>
+            async Task AsyncAction()
             {
+                if (history.LastOrDefault()?.Checkpoint < lastProcessedCheckpoint)
+                {
+                    await subscriber.NoSuchCheckpoint(new SubscriptionInfo
+                    {
+                        Id = subscriptionId,
+                        Subscription = subscription
+                    });
+                }
+
                 foreach (Transaction transaction in history)
                 {
-                    await subscriber.Send(new[] { transaction }).ConfigureAwait(false);
+                    await subscription.Send(new[] {transaction}).ConfigureAwait(false);
                 }
-            };
+            }
 
-            asyncAction().ConfigureAwait(false).GetAwaiter().GetResult();
+            AsyncAction().ConfigureAwait(false).GetAwaiter().GetResult();
 
-            return subscriber;
+            return subscription;
         }
 
 
@@ -102,29 +111,46 @@ namespace LiquidProjections
 
             return transaction;
         }
+
+        public bool HasSubscriptionForId(string subscriptionId)
+        {
+            Subscription subscription = subscribers.SingleOrDefault(s => s.Id == subscriptionId);
+            return (subscription != null) && !subscription.IsDisposed;
+        }
     }
 
-    internal class Subscriber : IDisposable
+    internal class Subscription : IDisposable
     {
         private readonly long lastProcessedCheckpoint;
         private readonly int batchSize;
-        private readonly Func<IReadOnlyList<Transaction>, Task> handler;
+        private readonly Subscriber subscriber;
+        private readonly string subscriptionId;
         private bool disposed = false;
-        
-        public Subscriber(long lastProcessedCheckpoint, int batchSize, Func<IReadOnlyList<Transaction>, Task> handler)
+
+        public Subscription(long lastProcessedCheckpoint, int batchSize,
+            Subscriber subscriber, string subscriptionId)
         {
             this.lastProcessedCheckpoint = lastProcessedCheckpoint;
             this.batchSize = batchSize;
-            this.handler = handler;
+            this.subscriber = subscriber;
+            this.subscriptionId = subscriptionId;
         }
 
         public async Task Send(IEnumerable<Transaction> transactions)
         {
             if (!disposed)
             {
-                foreach (var batch in transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).InBatchesOf(batchSize))
+                var subscriptionInfo = new SubscriptionInfo
                 {
-                    await handler(new ReadOnlyCollection<Transaction>(batch.ToList())).ConfigureAwait(false);
+                    Id = subscriptionId,
+                    Subscription = this
+                };
+
+                Transaction[] requestedTransactions = transactions.Where(t => t.Checkpoint > lastProcessedCheckpoint).ToArray();
+                foreach (var batch in requestedTransactions.InBatchesOf(batchSize))
+                {
+                    await subscriber.HandleTransactions(new ReadOnlyCollection<Transaction>(batch.ToList()), subscriptionInfo)
+                        .ConfigureAwait(false);
                 }
             }
         }
@@ -133,5 +159,9 @@ namespace LiquidProjections
         {
             disposed = true;
         }
+
+        public bool IsDisposed => disposed;
+
+        public string Id => subscriptionId;
     }
 }
