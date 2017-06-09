@@ -65,6 +65,108 @@ namespace LiquidProjections.Specs
                 The<FakeLogProvider>().Exception.Should().Be(The<ProjectionException>());
             }
         }
+        public class When_a_projector_throws_an_exception_but_requires_retrying : GivenSubject<Dispatcher>
+        {
+            private int attempts;
+
+            public When_a_projector_throws_an_exception_but_requires_retrying()
+            {
+                Given(() =>
+                {
+                    UseThe(new MemoryEventSource());
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
+
+                    UseThe(new ProjectionException("Some message."));
+
+                    Subject.ExceptionHandler = (exc, attempts, subscription) =>
+                    {
+                        return Task.FromResult(ExceptionResolution.Retry);
+                    };
+
+                    Subject.Subscribe(null, (transaction, info) =>
+                    {
+                        attempts++;
+                        if (attempts <= 1)
+                        {
+                            throw The<ProjectionException>();
+                        }
+
+                        return Task.FromResult(0);
+                    });
+                });
+
+                When(() =>
+                {
+                    return The<MemoryEventSource>().Write(new List<Transaction>());
+                });
+            }
+
+            [Fact]
+            public void It_should_have_retried_once()
+            {
+                attempts.Should().Be(2);
+            }
+
+            [Fact]
+            public void It_should_not_log_anything()
+            {
+                The<FakeLogProvider>().LogLevel.Should().BeNull();
+                The<FakeLogProvider>().Exception.Should().BeNull();
+            }
+        }
+        public class When_a_projector_throws_an_exception_that_can_be_ignored : GivenSubject<Dispatcher>
+        {
+            private int attempts;
+
+            public When_a_projector_throws_an_exception_that_can_be_ignored()
+            {
+                Given(() =>
+                {
+                    UseThe(new MemoryEventSource());
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
+
+                    UseThe(new ProjectionException("Some message."));
+
+                    Subject.ExceptionHandler = (exc, attempts, subscription) =>
+                    {
+                        return Task.FromResult(ExceptionResolution.Ignore);
+                    };
+
+                    Subject.Subscribe(null, (transaction, info) =>
+                    {
+                        attempts++;
+                        if (attempts <= 1)
+                        {
+                            throw The<ProjectionException>();
+                        }
+
+                        return Task.FromResult(0);
+                    });
+                });
+
+                When(() =>
+                {
+                    return The<MemoryEventSource>().Write(new List<Transaction>());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_retry_at_all()
+            {
+                attempts.Should().Be(1);
+            }
+
+            [Fact]
+            public void It_should_not_log_anything()
+            {
+                The<FakeLogProvider>().LogLevel.Should().BeNull();
+                The<FakeLogProvider>().Exception.Should().BeNull();
+            }
+        }
 
         public class When_the_requested_checkpoint_is_ahead_of_the_store_and_auto_restart_is_configured : GivenSubject<Dispatcher>
         {
@@ -139,6 +241,152 @@ namespace LiquidProjections.Specs
                 transactions.First().Checkpoint.Should().Be(999);
             }
         }
+        public class When_the_autorestart_cleanup_action_throws_but_a_retry_is_requested : GivenSubject<Dispatcher>
+        {
+            private readonly TaskCompletionSource<bool> done = new TaskCompletionSource<bool>();
+
+            private int attempts;
+
+            public When_the_autorestart_cleanup_action_throws_but_a_retry_is_requested()
+            {
+                Given(async () =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(1).Build());
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(999).Build());
+                });
+
+                When(() =>
+                {
+                    var options = new SubscriptionOptions
+                    {
+                        Id = "someId",
+                        RestartWhenAhead = true,
+                        BeforeRestarting = () =>
+                        {
+                            attempts++;
+                            if (attempts < 2)
+                            {
+                                throw new InvalidOperationException();
+                            }
+
+                            return Task.FromResult(0);
+                        }
+                    };
+
+                    Subject.ExceptionHandler = (exception, attempts, info) => Task.FromResult(ExceptionResolution.Retry);
+                    Subject.Subscribe(1000, (transactions, info) => Task.FromResult(0), options);
+                });
+            }
+
+            [Fact]
+            public void It_should_have_allowed_the_subscriber_to_retry_cleaning_up()
+            {
+                attempts.Should().Be(2);
+            }
+        }
+
+        public class When_the_autorestart_cleanup_action_throws_an_ignorable_exception : GivenSubject<Dispatcher>
+        {
+            private IReadOnlyList<Transaction> actualTransactions;
+
+            public When_the_autorestart_cleanup_action_throws_an_ignorable_exception()
+            {
+                Given(async () =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(1).Build());
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(999).Build());
+                });
+
+                When(() =>
+                {
+                    var options = new SubscriptionOptions
+                    {
+                        Id = "someId",
+                        RestartWhenAhead = true,
+                        BeforeRestarting = () =>
+                        {
+                            throw new InvalidOperationException();
+                        }
+                    };
+
+                    Subject.ExceptionHandler = (exception, attempts, info) => Task.FromResult(ExceptionResolution.Ignore);
+                    Subject.Subscribe(1000, (transactions, info) =>
+                    {
+                        this.actualTransactions = transactions;
+
+                        return Task.FromResult(0);
+                    }, options);
+                });
+            }
+
+            [Fact]
+            public void It_should_ignore_the_exception_and_continue_serving_transactions()
+            {
+                actualTransactions.Should().NotBeEmpty();
+            }
+        }
+        public class When_the_autorestart_cleanup_action_throws_an_exception : GivenSubject<Dispatcher>
+        {
+            private IReadOnlyList<Transaction> actualTransactions;
+
+            public When_the_autorestart_cleanup_action_throws_an_exception()
+            {
+                Given(async () =>
+                {
+                    UseThe(new MemoryEventSource());
+
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(1).Build());
+
+                    await The<MemoryEventSource>().Write(
+                        new TransactionBuilder().WithCheckpoint(999).Build());
+                });
+
+                When(() =>
+                {
+                    var options = new SubscriptionOptions
+                    {
+                        Id = "someId",
+                        RestartWhenAhead = true,
+                        BeforeRestarting = () =>
+                        {
+                            throw new InvalidOperationException();
+                        }
+                    };
+
+                    Subject.ExceptionHandler = (exception, attempts, info) => Task.FromResult(ExceptionResolution.Abort);
+                    Subject.Subscribe(1000, (transactions, info) =>
+                    {
+                        this.actualTransactions = transactions;
+
+                        return Task.FromResult(0);
+                    }, options);
+                });
+            }
+
+            [Fact]
+            public void It_should_not_dispatch_any_transactions_anymore()
+            {
+                actualTransactions.Should().BeNull();
+            }
+        }
+
         public class When_there_are_no_new_transactions_available_and_auto_restart_is_configured : GivenSubject<Dispatcher>
         {
             private readonly BlockingCollection<Transaction> receivedTransactions = new BlockingCollection<Transaction>();
