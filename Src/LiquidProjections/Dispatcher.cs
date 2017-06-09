@@ -6,6 +6,9 @@ using LiquidProjections.Logging;
 
 namespace LiquidProjections
 {
+    /// <summary>
+    /// Serves as the entry point for subscribers and provides policies for handling exceptions thrown by subscribers.
+    /// </summary>
     public class Dispatcher
     {
         private readonly CreateSubscription createSubscription;
@@ -36,44 +39,101 @@ namespace LiquidProjections
             }, options.Id);
         }
 
-        private static async Task HandleTransactions(IReadOnlyList<Transaction> transactions, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionInfo info)
+        /// <summary>
+        /// Configures the behavior of the dispatcher in case an exception is thrown by a subscriber. The default
+        /// behavior is to dispose of the subscription.
+        /// </summary>
+        public HandleException ExceptionHandler { get; set; } = (e, attempts, info) => Task.FromResult(ExceptionResolution.Abort);
+
+        private async Task HandleTransactions(IReadOnlyList<Transaction> transactions, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionInfo info)
         {
-            try
-            {
-                await handler(transactions, info);
-            }
-            catch (Exception exception)
+            await ExecuteWithPolicy(info, () => handler(transactions, info), abort: exception =>
             {
                 LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
                     "Projector exception was not handled. Event subscription has been cancelled.",
                     exception);
 
                 info.Subscription?.Dispose();
-            }
+            });
         }
 
         private async Task HandleUnknownCheckpoint(SubscriptionInfo info, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionOptions options)
         {
             if (options.RestartWhenAhead)
             {
-                try
-                {
-                    info.Subscription?.Dispose();
+                info.Subscription?.Dispose();
 
+                await ExecuteWithPolicy(info, async () =>
+                {
                     await options.BeforeRestarting();
 
                     Subscribe(null, handler, options);
-                }
-                catch (Exception exception)
+                }, abort: exception =>
                 {
                     LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
                         "Failed to restart the projector.",
                         exception);
+                }, ignore: () => Subscribe(null, handler, options));
+            }
+        }
+
+        private async Task ExecuteWithPolicy(SubscriptionInfo info, Func<Task> action, Action<Exception> abort, Action ignore = null)
+        {
+            int attempts = 0;
+            bool retry = true;
+            do
+            {
+                try
+                {
+                    attempts++;
+                    await action();
+                    retry = false;
+                }
+                catch (Exception exception)
+                {
+                    ExceptionResolution resolution = await ExceptionHandler(exception, attempts, info);
+                    switch (resolution)
+                    {
+                        case ExceptionResolution.Abort:
+                            abort(exception);
+                            retry = false;
+                            break;
+
+                        case ExceptionResolution.Retry:
+                            break;
+
+                        case ExceptionResolution.Ignore:
+                            retry = false;
+                            ignore?.Invoke();
+                            break;
+                    }
                 }
             }
+            while (retry);
         }
     }
 
+    /// <summary>
+    /// Defines the signature for a method that handles an exception while dispatching transactions.
+    /// </summary>
+    /// <param name="exception">The exception that was caught by the <see cref="Dispatcher"/></param>
+    /// <param name="attempts">Counts the number times the action involved was attempted. Starts at <c>1</c></param>
+    /// <param name="info">Information about the subscription.</param>
+    /// <returns>
+    /// Instructs the <see cref="Dispatcher"/> on how to resolve the exception.
+    /// </returns>
+    public delegate Task<ExceptionResolution> HandleException(Exception exception, int attempts, SubscriptionInfo info);
+
+    /// <summary>
+    /// Defines the behavior in case a subscriber throws an exception.
+    /// </summary>
+    public enum ExceptionResolution
+    {
+        Ignore,
+        Abort,
+        Retry
+    }
+    
     public class SubscriptionOptions
     {
         /// <summary>
