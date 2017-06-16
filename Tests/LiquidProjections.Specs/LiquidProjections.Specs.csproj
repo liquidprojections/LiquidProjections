@@ -68,6 +68,7 @@
     <Compile Include="DispatcherSpecs.cs" />
     <Compile Include="EventMapSpecs.cs" />
     <Compile Include="ProjectionExceptionSpecs.cs" />
+    <Compile Include="ProjectionStatsSpecs.cs" />
     <Compile Include="ProjectorSpecs.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TaskExtensions.cs" />

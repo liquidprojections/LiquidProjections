@@ -43,7 +43,10 @@ namespace LiquidProjections.Specs
 
                 When(() =>
                 {
-                    return The<MemoryEventSource>().Write(new List<Transaction>());
+                    return The<MemoryEventSource>().Write(new List<Transaction>
+                    {
+                        new Transaction()
+                    });
                 });
             }
 
