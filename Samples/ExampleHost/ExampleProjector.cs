@@ -1,7 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using LiquidProjections.Statistics;
 
 namespace LiquidProjections.ExampleHost
 {
@@ -13,14 +13,16 @@ namespace LiquidProjections.ExampleHost
         where TProjection : class, IEntity, new()
     {
         private readonly InMemoryDatabase store;
-        private readonly Projector innerProjector;
+        private readonly ProjectionStats stats;
 
-        public ExampleProjector(IEventMapBuilder<TProjection, string, ProjectionContext> mapBuilder, InMemoryDatabase store, params IExampleProjector[] childProjectors)
+        public ExampleProjector(IEventMapBuilder<TProjection, string, ProjectionContext> mapBuilder, InMemoryDatabase store,
+            ProjectionStats stats, params IExampleProjector[] childProjectors)
         {
             this.store = store;
+            this.stats = stats;
             var map = BuildMapFrom(mapBuilder);
 
-            innerProjector = new Projector(map, childProjectors.Select(p => p.InnerProjector));
+            InnerProjector = new Projector(map, childProjectors.Select(p => p.InnerProjector));
         }
 
         private IEventMap<ProjectionContext> BuildMapFrom(IEventMapBuilder<TProjection, string, ProjectionContext> mapBuilder)
@@ -53,12 +55,16 @@ namespace LiquidProjections.ExampleHost
             return mapBuilder.Build();
         }
 
-        public Task Handle(IReadOnlyList<Transaction> transactions)
+        public async Task Handle(IReadOnlyList<Transaction> transactions)
         {
-            return innerProjector.Handle(transactions);
+            await InnerProjector.Handle(transactions);
+
+            stats.TrackProgress(Id, transactions.Last().Checkpoint);
         }
 
-        public Projector InnerProjector => innerProjector;
+        public Projector InnerProjector { get; }
+
+        public string Id { get; set; }
     }
 
     public interface IExampleProjector

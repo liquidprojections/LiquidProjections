@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using LiquidProjections.ExampleHost.Events;
+using LiquidProjections.Statistics;
 
 namespace LiquidProjections.ExampleHost
 {
@@ -9,13 +10,15 @@ namespace LiquidProjections.ExampleHost
     {
         private readonly Dispatcher dispatcher;
         private readonly InMemoryDatabase store;
+        private readonly ProjectionStats stats;
         private ExampleProjector<DocumentCountProjection> documentCountProjector;
         private ExampleProjector<CountryLookup> countryLookupProjector;
 
-        public CountsProjector(Dispatcher dispatcher, InMemoryDatabase store)
+        public CountsProjector(Dispatcher dispatcher, InMemoryDatabase store, ProjectionStats stats)
         {
             this.dispatcher = dispatcher;
             this.store = store;
+            this.stats = stats;
 
             BuildCountryProjector();
             BuildDocumentProjector();
@@ -210,8 +213,11 @@ namespace LiquidProjections.ExampleHost
                     period.Status = "Canceled";
                 });
 
-            documentCountProjector = 
-                new ExampleProjector<DocumentCountProjection>(documentMapBuilder, store, countryLookupProjector);
+            documentCountProjector =
+                new ExampleProjector<DocumentCountProjection>(documentMapBuilder, store, stats, countryLookupProjector)
+                {
+                    Id = "DocumentCount"
+                };
         }
 
         private string GetCountryName(Guid countryCode)
@@ -229,7 +235,10 @@ namespace LiquidProjections.ExampleHost
                 .AsCreateOf(anEvent => anEvent.Code)
                 .Using((country, anEvent) => country.Name = anEvent.Name);
 
-            countryLookupProjector = new ExampleProjector<CountryLookup>(countryMapBuilder, store);
+            countryLookupProjector = new ExampleProjector<CountryLookup>(countryMapBuilder, store, stats)
+            {
+                Id = "CountryLookup"
+            };
         }
 
         private static IEnumerable<ValidityPeriod> GetPreviousContiguousValidPeriods(List<ValidityPeriod> allPeriods,

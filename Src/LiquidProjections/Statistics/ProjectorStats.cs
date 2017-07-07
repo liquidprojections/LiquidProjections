@@ -26,11 +26,12 @@ namespace LiquidProjections.Statistics
 
         private TimestampedCheckpoint lastCheckpoint;
 
-        public ProjectorStats(string projectorId)
+        public ProjectorStats(string projectorId, Func<DateTime> nowUtc)
         {
             properties = new ConcurrentDictionary<string, Property>();
             events = new List<Event>();
             ProjectorId = projectorId;
+            lastCheckpoint = new TimestampedCheckpoint(0, nowUtc());
         }
 
         public ProjectorStats(string projectorId, IDictionary<string, Property> properties, IEnumerable<Event> events)

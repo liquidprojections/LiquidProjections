@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Web.Http;
 using System.Web.Http.Dispatcher;
+using LiquidProjections.Owin;
+using LiquidProjections.Statistics;
 using Microsoft.Owin.Hosting;
 using Owin;
 using TinyIoC;
@@ -22,10 +24,16 @@ namespace LiquidProjections.ExampleHost
 
             var dispatcher = new Dispatcher(eventStore.Subscribe);
 
-            var bootstrapper = new CountsProjector(dispatcher, projectionsStore);
+            var stats = new ProjectionStats(() => DateTime.UtcNow);
+
+            var bootstrapper = new CountsProjector(dispatcher, projectionsStore, stats);
 
             var startOptions = new StartOptions($"http://localhost:9000");
-            using (WebApp.Start(startOptions, builder => builder.UseControllers(container)))
+            using (WebApp.Start(startOptions, builder =>
+            {
+                builder.UseControllers(container);
+                builder.UseLiquidProjections(stats);
+            }))
             {
                 bootstrapper.Start();
 

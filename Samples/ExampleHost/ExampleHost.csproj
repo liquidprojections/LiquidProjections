@@ -9,7 +9,7 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>LiquidProjections.ExampleHost</RootNamespace>
     <AssemblyName>LiquidProjections.ExampleHost</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <TargetFrameworkProfile />
   </PropertyGroup>
@@ -135,10 +135,17 @@
       <Project>{8e38c862-7dc9-4a7e-a2ee-921ffbc7ee2d}</Project>
       <Name>LiquidProjections.Abstractions</Name>
     </ProjectReference>
+    <ProjectReference Include="..\..\Src\LiquidProjections.Owin\LiquidProjections.Owin.csproj">
+      <Project>{43c0a9ed-8094-4646-85a4-6eaa03505a20}</Project>
+      <Name>LiquidProjections.Owin</Name>
+    </ProjectReference>
     <ProjectReference Include="..\..\Src\LiquidProjections\LiquidProjections.csproj">
       <Project>{7b47454d-0129-43cb-aed5-27afafdb5d7c}</Project>
       <Name>LiquidProjections</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

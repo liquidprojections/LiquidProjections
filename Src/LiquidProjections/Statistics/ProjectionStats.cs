@@ -57,11 +57,14 @@ namespace LiquidProjections.Statistics
             return this[projectorId].GetTimeToReach(targetCheckpoint);
         }
 
-        private ProjectorStats this[string projectorId]
+        /// <summary>
+        /// Gets the statistics for a particular projector.
+        /// </summary>
+        public ProjectorStats this[string projectorId]
         {
             get
             {
-                return stats.GetOrAdd(projectorId, id => new ProjectorStats(id));
+                return stats.GetOrAdd(projectorId, id => new ProjectorStats(id, nowUtc));
             }
         }
 
