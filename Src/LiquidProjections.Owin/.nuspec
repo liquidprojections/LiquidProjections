@@ -1,0 +1,26 @@
+﻿<?xml version="1.0"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+    <metadata>
+        <id>LiquidProjections.Owin</id>
+        <version>0.0.0.0</version>
+        <authors>Dennis Doomen</authors>
+        <owners>Dennis Doomen</owners>
+        <projectUrl>https://github.com/liquidprojections/LiquidProjections</projectUrl>
+        <requireLicenseAcceptance>false</requireLicenseAcceptance>
+        <description>Provides OWIN Middleware to access LiquidProjection over HTTP.</description>
+        <tags>event-sourcing; projections; ddd; owin; webapi</tags>
+        <frameworkAssemblies />
+        <releaseNotes/>
+      <dependencies>
+        <group>
+          <dependency id="LiquidProjections" version="$nugetversion$"/>
+          <dependency id="Owin" version="1.0.0.0"/>
+    		</group>
+      </dependencies>
+    </metadata>
+    <files>
+        <file src="..\..\Artifacts\LiquidProjections.Owin.dll" target="lib\net452" />
+        <file src="..\..\Artifacts\LiquidProjections.Owin.pdb" target="lib\net452" />
+        <file src="..\..\Artifacts\LiquidProjections.Owin.xml" target="lib\net452" />
+    </files>
+</package>
