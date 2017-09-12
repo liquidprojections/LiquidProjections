@@ -36,11 +36,4 @@ namespace LiquidProjections.Abstractions
         /// </summary>
         public Func<SubscriptionInfo, Task> NoSuchCheckpoint { get; set; }
     }
-
-    public class SubscriptionInfo
-    {
-        public string Id { get; set; }
-
-        public IDisposable Subscription { get; set; }
-    }
 }
