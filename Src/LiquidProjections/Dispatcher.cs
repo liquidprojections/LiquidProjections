@@ -45,16 +45,25 @@ namespace LiquidProjections
         /// </summary>
         public HandleException ExceptionHandler { get; set; } = (e, attempts, info) => Task.FromResult(ExceptionResolution.Abort);
 
+        public HandleSuccess SuccessHandler { get; set; } = _ => Task.FromResult(false);
+
         private async Task HandleTransactions(IReadOnlyList<Transaction> transactions, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionInfo info)
         {
-            await ExecuteWithPolicy(info, () => handler(transactions, info), abort: exception =>
-            {
-                LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
-                    "Projector exception was not handled. Event subscription has been cancelled.",
-                    exception);
+            await ExecuteWithPolicy(
+                info,
+                async () =>
+                {
+                    await handler(transactions, info);
+                    await SuccessHandler(info);
+                },
+                abort: exception =>
+                {
+                    LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
+                        "Projector exception was not handled. Event subscription has been cancelled.",
+                        exception);
 
-                info.Subscription?.Dispose();
-            });
+                    info.Subscription?.Dispose();
+                });
         }
 
         private async Task HandleUnknownCheckpoint(SubscriptionInfo info, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionOptions options)
@@ -141,7 +150,13 @@ namespace LiquidProjections
         Abort,
         Retry
     }
-    
+
+    /// <summary>
+    /// Defines the signature for a method that handles a successful transaction dispatching iteration.
+    /// </summary>
+    /// <param name="info">Information about the subscription.</param>
+    public delegate Task HandleSuccess(SubscriptionInfo info);
+
     public class SubscriptionOptions
     {
         /// <summary>
