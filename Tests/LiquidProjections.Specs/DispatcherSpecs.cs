@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Chill;
@@ -119,6 +120,68 @@ namespace LiquidProjections.Specs
                 The<FakeLogProvider>().Exception.Should().BeNull();
             }
         }
+        public class When_a_projector_throws_an_exception_and_the_exception_handler_has_a_delay_and_the_subscription_is_disposed :
+            GivenSubject<Dispatcher>
+        {
+            private readonly ManualResetEventSlim delayStarted = new ManualResetEventSlim();
+            private readonly ManualResetEventSlim delayFinished = new ManualResetEventSlim();
+            private IDisposable subscription;
+
+            public When_a_projector_throws_an_exception_and_the_exception_handler_has_a_delay_and_the_subscription_is_disposed()
+            {
+                Given(() =>
+                {
+                    UseThe(new MemoryEventSource());
+                    WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
+
+                    LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
+
+                    UseThe(new ProjectionException("Some message."));
+
+                    Subject.ExceptionHandler = async (exc, attempts, subscription) =>
+                    {
+                        delayStarted.Set();
+
+                        try
+                        {
+                            await Task.Delay(TimeSpan.FromDays(1), subscription.CancellationToken.Value);
+                        }
+                        finally
+                        {
+                            delayFinished.Set();
+                        }
+
+                        return ExceptionResolution.Retry;
+                    };
+
+                    subscription = Subject.Subscribe(null, (transaction, info) =>
+                    {
+                        throw The<ProjectionException>();
+                    });
+
+                    The<MemoryEventSource>().WriteWithoutWaiting(new List<Transaction>());
+                });
+
+                When(() =>
+                {
+                    if (!delayStarted.Wait(TimeSpan.FromSeconds(10)))
+                    {
+                        throw new InvalidOperationException("The delay has not started in 10 seconds.");
+                    }
+                    
+                    subscription.Dispose();
+                });
+            }
+
+            [Fact]
+            public void It_should_stop_waiting()
+            {
+                if (!delayFinished.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new InvalidOperationException("The delay has not been cancelled in 10 seconds.");
+                }
+            }
+        }
         public class When_a_projector_throws_an_exception_that_can_be_ignored : GivenSubject<Dispatcher>
         {
             private int attempts;
@@ -210,7 +273,10 @@ namespace LiquidProjections.Specs
 
                     Subject.Subscribe(1000, (transactions, info) =>
                     {
-                        trace.Add("TransactionsReceived");
+                        foreach (var transaction in transactions)
+                        {
+                            trace.Add("TransactionReceived");
+                        }
 
                         foreach (var transaction in transactions)
                         {
@@ -233,7 +299,7 @@ namespace LiquidProjections.Specs
             {
                 await allTransactionsReceived.Task.TimeoutAfter(30.Seconds());
 
-                trace.Should().Equal("BeforeRestarting", "TransactionsReceived", "TransactionsReceived");
+                trace.Should().Equal("BeforeRestarting", "TransactionReceived", "TransactionReceived");
             }
 
             [Fact]
@@ -241,7 +307,7 @@ namespace LiquidProjections.Specs
             {
                 var transactions = await allTransactionsReceived.Task.TimeoutAfter(30.Seconds());
 
-                transactions.First().Checkpoint.Should().Be(999);
+                transactions.First().Checkpoint.Should().Be(1);
             }
         }
         public class When_the_autorestart_cleanup_action_throws_but_a_retry_is_requested : GivenSubject<Dispatcher>

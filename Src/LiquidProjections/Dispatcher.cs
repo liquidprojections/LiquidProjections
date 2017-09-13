@@ -34,8 +34,8 @@ namespace LiquidProjections
 
             return createSubscription(lastProcessedCheckpoint, new Subscriber
             {
-                HandleTransactions = async (transactions, info) => await HandleTransactions(transactions, handler, info),
-                NoSuchCheckpoint = async info => await HandleUnknownCheckpoint(info, handler, options)
+                HandleTransactions = async (transactions, info) => await HandleTransactions(transactions, handler, info).ConfigureAwait(false),
+                NoSuchCheckpoint = async info => await HandleUnknownCheckpoint(info, handler, options).ConfigureAwait(false)
             }, options.Id);
         }
 
@@ -45,35 +45,54 @@ namespace LiquidProjections
         /// </summary>
         public HandleException ExceptionHandler { get; set; } = (e, attempts, info) => Task.FromResult(ExceptionResolution.Abort);
 
+        public HandleSuccess SuccessHandler { get; set; } = _ => Task.FromResult(false);
+
         private async Task HandleTransactions(IReadOnlyList<Transaction> transactions, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionInfo info)
         {
-            await ExecuteWithPolicy(info, () => handler(transactions, info), abort: exception =>
-            {
-                LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
-                    "Projector exception was not handled. Event subscription has been cancelled.",
-                    exception);
+            await ExecuteWithPolicy(
+                info,
+                async () =>
+                {
+                    await handler(transactions, info).ConfigureAwait(false);
+                    await SuccessHandler(info).ConfigureAwait(false);
+                },
+                abort: exception =>
+                {
+                    LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
+                        "Projector exception was not handled. Event subscription has been cancelled.",
+                        exception);
 
-                info.Subscription?.Dispose();
-            });
+                    info.Subscription?.Dispose();
+                })
+                .ConfigureAwait(false);
         }
 
         private async Task HandleUnknownCheckpoint(SubscriptionInfo info, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionOptions options)
         {
             if (options.RestartWhenAhead)
             {
+                await ExecuteWithPolicy(
+                    info,
+                    async () =>
+                    {
+                        await options.BeforeRestarting().ConfigureAwait(false);
+    
+                        Subscribe(null, handler, options);
+                    },
+                    abort: exception =>
+                    {
+                        LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
+                            "Failed to restart the projector.",
+                            exception);
+                    },
+                    ignore: () => Subscribe(null, handler, options))
+                    .ConfigureAwait(false);
+
+                // Dispose the subscription only after a new subscription is created
+                // to support CreateSubscription delegates which wait
+                // until the subscription detects being ahead
+                // and until all the existing transactions are processed by the new subscription
                 info.Subscription?.Dispose();
-
-                await ExecuteWithPolicy(info, async () =>
-                {
-                    await options.BeforeRestarting();
-
-                    Subscribe(null, handler, options);
-                }, abort: exception =>
-                {
-                    LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
-                        "Failed to restart the projector.",
-                        exception);
-                }, ignore: () => Subscribe(null, handler, options));
             }
         }
 
@@ -86,12 +105,12 @@ namespace LiquidProjections
                 try
                 {
                     attempts++;
-                    await action();
+                    await action().ConfigureAwait(false);
                     retry = false;
                 }
                 catch (Exception exception)
                 {
-                    ExceptionResolution resolution = await ExceptionHandler(exception, attempts, info);
+                    ExceptionResolution resolution = await ExceptionHandler(exception, attempts, info).ConfigureAwait(false);
                     switch (resolution)
                     {
                         case ExceptionResolution.Abort:
@@ -133,7 +152,13 @@ namespace LiquidProjections
         Abort,
         Retry
     }
-    
+
+    /// <summary>
+    /// Defines the signature for a method that handles a successful transaction dispatching iteration.
+    /// </summary>
+    /// <param name="info">Information about the subscription.</param>
+    public delegate Task HandleSuccess(SubscriptionInfo info);
+
     public class SubscriptionOptions
     {
         /// <summary>
