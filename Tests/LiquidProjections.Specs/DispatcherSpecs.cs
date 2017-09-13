@@ -210,7 +210,10 @@ namespace LiquidProjections.Specs
 
                     Subject.Subscribe(1000, (transactions, info) =>
                     {
-                        trace.Add("TransactionsReceived");
+                        foreach (var transaction in transactions)
+                        {
+                            trace.Add("TransactionReceived");
+                        }
 
                         foreach (var transaction in transactions)
                         {
@@ -233,7 +236,7 @@ namespace LiquidProjections.Specs
             {
                 await allTransactionsReceived.Task.TimeoutAfter(30.Seconds());
 
-                trace.Should().Equal("BeforeRestarting", "TransactionsReceived", "TransactionsReceived");
+                trace.Should().Equal("BeforeRestarting", "TransactionReceived", "TransactionReceived");
             }
 
             [Fact]
@@ -241,7 +244,7 @@ namespace LiquidProjections.Specs
             {
                 var transactions = await allTransactionsReceived.Task.TimeoutAfter(30.Seconds());
 
-                transactions.First().Checkpoint.Should().Be(999);
+                transactions.First().Checkpoint.Should().Be(1);
             }
         }
         public class When_the_autorestart_cleanup_action_throws_but_a_retry_is_requested : GivenSubject<Dispatcher>

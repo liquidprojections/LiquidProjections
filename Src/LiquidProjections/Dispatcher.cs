@@ -61,19 +61,27 @@ namespace LiquidProjections
         {
             if (options.RestartWhenAhead)
             {
+                await ExecuteWithPolicy(
+                    info,
+                    async () =>
+                    {
+                        await options.BeforeRestarting();
+    
+                        Subscribe(null, handler, options);
+                    },
+                    abort: exception =>
+                    {
+                        LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
+                            "Failed to restart the projector.",
+                            exception);
+                    },
+                    ignore: () => Subscribe(null, handler, options));
+
+                // Dispose the subscription only after a new subscription is created
+                // to support CreateSubscription delegates which wait
+                // until the subscription detects being ahead
+                // and until all the existing transactions are processed by the new subscription
                 info.Subscription?.Dispose();
-
-                await ExecuteWithPolicy(info, async () =>
-                {
-                    await options.BeforeRestarting();
-
-                    Subscribe(null, handler, options);
-                }, abort: exception =>
-                {
-                    LogProvider.GetLogger(typeof(Dispatcher)).FatalException(
-                        "Failed to restart the projector.",
-                        exception);
-                }, ignore: () => Subscribe(null, handler, options));
             }
         }
 

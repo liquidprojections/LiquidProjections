@@ -15,6 +15,8 @@ namespace LiquidProjections.Specs
         {
             protected EventMapBuilder<ProjectionContext> Events;
 
+            protected List<Exception> ProjectionExceptions { get; } = new List<Exception>();
+
             public Given_a_projector_with_an_in_memory_event_source()
             {
                 Given(() =>
@@ -29,9 +31,24 @@ namespace LiquidProjections.Specs
 
             protected void StartProjecting()
             {
-                The<MemoryEventSource>().Subscribe(110, new Subscriber
+                The<MemoryEventSource>().Subscribe(null, new Subscriber
                 {
-                    HandleTransactions = async (transactions, info) => await Subject.Handle(transactions)
+                    HandleTransactions = async (transactions, info) =>
+                    {
+                        try
+                        {
+                            await Subject.Handle(transactions);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            // Do nothing.
+                        }
+                        catch (Exception exception)
+                        {
+                            ProjectionExceptions.Add(exception);
+                            info.Subscription.Dispose();
+                        }
+                    }
                 }, "");
             }
         }
@@ -235,26 +252,31 @@ namespace LiquidProjections.Specs
                     StartProjecting();
                 });
 
-                When(() => The<MemoryEventSource>().Write(The<Transaction>()), deferredExecution: true);
+                When(() => The<MemoryEventSource>().Write(The<Transaction>()));
             }
 
             [Fact]
             public void Then_it_should_wrap_the_exception_into_a_projection_exception()
             {
-                WhenAction.ShouldThrow<ProjectionException>()
+                ProjectionExceptions.Should().ContainSingle()
+                    .Which.Should().BeOfType<ProjectionException>()
                     .Which.InnerException.Should().BeSameAs(The<InvalidOperationException>());
             }
 
             [Fact]
             public void Then_it_should_include_the_current_event_into_the_projection_exception()
             {
-                WhenAction.ShouldThrow<ProjectionException>().Which.CurrentEvent.Should().Be(The<EventEnvelope>());
+                ProjectionExceptions.Should().ContainSingle()
+                    .Which.Should().BeOfType<ProjectionException>()
+                    .Which.CurrentEvent.Should().Be(The<EventEnvelope>());
             }
 
             [Fact]
             public void Then_it_should_include_the_current_transaction_batch_into_the_projection_exception()
             {
-                WhenAction.ShouldThrow<ProjectionException>().Which.TransactionBatch.Should().BeEquivalentTo(The<Transaction>());
+                ProjectionExceptions.Should().ContainSingle()
+                    .Which.Should().BeOfType<ProjectionException>()
+                    .Which.TransactionBatch.Should().BeEquivalentTo(The<Transaction>());
             }
         }
 
