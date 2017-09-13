@@ -292,7 +292,8 @@ namespace LiquidProjections.Testing
                     SubscriptionInfo info = new SubscriptionInfo
                     {
                         Id = Id,
-                        Subscription = this
+                        Subscription = this,
+                        CancellationToken = cancellationTokenSource.Token
                     };
                     
                     task = Task.Factory.StartNew(
