@@ -34,8 +34,8 @@ namespace LiquidProjections
 
             return createSubscription(lastProcessedCheckpoint, new Subscriber
             {
-                HandleTransactions = async (transactions, info) => await HandleTransactions(transactions, handler, info),
-                NoSuchCheckpoint = async info => await HandleUnknownCheckpoint(info, handler, options)
+                HandleTransactions = async (transactions, info) => await HandleTransactions(transactions, handler, info).ConfigureAwait(false),
+                NoSuchCheckpoint = async info => await HandleUnknownCheckpoint(info, handler, options).ConfigureAwait(false)
             }, options.Id);
         }
 
@@ -53,8 +53,8 @@ namespace LiquidProjections
                 info,
                 async () =>
                 {
-                    await handler(transactions, info);
-                    await SuccessHandler(info);
+                    await handler(transactions, info).ConfigureAwait(false);
+                    await SuccessHandler(info).ConfigureAwait(false);
                 },
                 abort: exception =>
                 {
@@ -63,7 +63,8 @@ namespace LiquidProjections
                         exception);
 
                     info.Subscription?.Dispose();
-                });
+                })
+                .ConfigureAwait(false);
         }
 
         private async Task HandleUnknownCheckpoint(SubscriptionInfo info, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionOptions options)
@@ -74,7 +75,7 @@ namespace LiquidProjections
                     info,
                     async () =>
                     {
-                        await options.BeforeRestarting();
+                        await options.BeforeRestarting().ConfigureAwait(false);
     
                         Subscribe(null, handler, options);
                     },
@@ -84,7 +85,8 @@ namespace LiquidProjections
                             "Failed to restart the projector.",
                             exception);
                     },
-                    ignore: () => Subscribe(null, handler, options));
+                    ignore: () => Subscribe(null, handler, options))
+                    .ConfigureAwait(false);
 
                 // Dispose the subscription only after a new subscription is created
                 // to support CreateSubscription delegates which wait
@@ -103,12 +105,12 @@ namespace LiquidProjections
                 try
                 {
                     attempts++;
-                    await action();
+                    await action().ConfigureAwait(false);
                     retry = false;
                 }
                 catch (Exception exception)
                 {
-                    ExceptionResolution resolution = await ExceptionHandler(exception, attempts, info);
+                    ExceptionResolution resolution = await ExceptionHandler(exception, attempts, info).ConfigureAwait(false);
                     switch (resolution)
                     {
                         case ExceptionResolution.Abort:
