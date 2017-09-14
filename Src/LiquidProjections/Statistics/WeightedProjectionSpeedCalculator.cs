@@ -66,17 +66,17 @@ namespace LiquidProjections.Statistics
             }
         }
 
-        public float GetWeightedSpeedIncluding(float sample)
+        public float? GetWeightedSpeedIncluding(float sample)
         {
             return GetWeightedSpeed(samples.Concat(new[] { sample }));
         }
 
-        public float GetWeightedSpeed()
+        public float? GetWeightedSpeed()
         {
             return GetWeightedSpeed(samples);
         }
         
-        public float GetWeightedSpeed(IEnumerable<float> effectiveSamples)
+        public float? GetWeightedSpeed(IEnumerable<float> effectiveSamples)
         {
             float weightedSum = 0;
             int weights = 0;
@@ -89,7 +89,7 @@ namespace LiquidProjections.Statistics
                 weightedSum += sample * weight;
             }
 
-            return weights == 0 ? 0 : weightedSum / weights;
+            return (weights == 0) ? (float?) null : weightedSum / weights;
         }
     }
 }

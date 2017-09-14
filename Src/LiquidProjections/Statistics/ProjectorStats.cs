@@ -55,6 +55,21 @@ namespace LiquidProjections.Statistics
         }
 
         /// <summary>
+        /// Calculates the speed in transactions per second based on a weighted average over the last 10 minutes 
+        /// or <c>null</c> if no information is yet available.
+        /// </summary>
+        public float? GetSpeed()
+        {
+            float? speed = lastMinuteSamples.GetWeightedSpeed();
+
+            speed = (speed == null)
+                ? last10MinuteSamples.GetWeightedSpeed()
+                : last10MinuteSamples.GetWeightedSpeedIncluding(speed.Value);
+
+            return speed;
+        }
+
+        /// <summary>
         /// Gets a snapshot of the properties stored for this projector at the time of calling.
         /// </summary>
         public IDictionary<string, Property> GetProperties() => properties.ToArray().ToDictionary(p => p.Key, p => p.Value);
@@ -100,20 +115,14 @@ namespace LiquidProjections.Statistics
                 {
                     return TimeSpan.Zero;
                 }
-                
-                float speed = lastMinuteSamples.GetWeightedSpeed();
 
-                speed = (speed == 0)
-                    ? last10MinuteSamples.GetWeightedSpeed()
-                    : last10MinuteSamples.GetWeightedSpeedIncluding(speed);
-
-                if (speed == 0)
+                float? speed = GetSpeed();
+                if (speed == null)
                 {
                     return null;
                 }
                 
-                float secondsWithFractionalPart = (targetCheckpoint - lastCheckpoint.Checkpoint) / speed;
-
+                float secondsWithFractionalPart = (targetCheckpoint - lastCheckpoint.Checkpoint) / speed.Value;
                 if (secondsWithFractionalPart > long.MaxValue)
                 {
                     return null;

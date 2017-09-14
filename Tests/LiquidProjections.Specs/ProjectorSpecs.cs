@@ -110,7 +110,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void Then_it_should_have_created_the_context()
             {
-                context.ShouldBeEquivalentTo(new ProjectionContext
+                context.Should().BeEquivalentTo(new ProjectionContext
                 {
                     Checkpoint = 111,
                     TransactionId = "MyTransactionId",
@@ -276,7 +276,7 @@ namespace LiquidProjections.Specs
             {
                 ProjectionExceptions.Should().ContainSingle()
                     .Which.Should().BeOfType<ProjectionException>()
-                    .Which.TransactionBatch.Should().BeEquivalentTo(The<Transaction>());
+                    .Which.TransactionBatch.Should().AllBeEquivalentTo(The<Transaction>());
             }
         }
 

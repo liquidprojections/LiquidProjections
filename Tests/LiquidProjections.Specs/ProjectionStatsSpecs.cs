@@ -56,7 +56,7 @@ namespace LiquidProjections.Specs
             var projectorStats = stats.GetForAllProjectors().Should().ContainSingle(s => s.ProjectorId == "myProjector").Subject;
 
             projectorStats.GetProperties().Should().ContainKey("theName");
-            projectorStats.GetProperties()["theName"].ShouldBeEquivalentTo(new
+            projectorStats.GetProperties()["theName"].Should().BeEquivalentTo(new
             {
                 Value = "anotherValue",
                 TimestampUtc = nowUtc
@@ -86,14 +86,14 @@ namespace LiquidProjections.Specs
             var projectorStats = stats.GetForAllProjectors().Should().ContainSingle(s => s.ProjectorId == "myProjector").Subject;
 
             projectorStats.GetProperties().Should().ContainKey("aName");
-            projectorStats.GetProperties()["aName"].ShouldBeEquivalentTo(new
+            projectorStats.GetProperties()["aName"].Should().BeEquivalentTo(new
             {
                 Value = "aValue",
                 TimestampUtc = firstUtc
             });
 
             projectorStats.GetProperties().Should().ContainKey("anotherName");
-            projectorStats.GetProperties()["anotherName"].ShouldBeEquivalentTo(new
+            projectorStats.GetProperties()["anotherName"].Should().BeEquivalentTo(new
             {
                 Value = "anotherValue",
                 TimestampUtc = nowUtc
@@ -122,7 +122,7 @@ namespace LiquidProjections.Specs
             // Assert
             //-----------------------------------------------------------------------------------------------------------
             var projectorStats = stats.GetForAllProjectors().Should().ContainSingle(s => s.ProjectorId == "myProjector").Subject;
-            projectorStats.GetEvents().ShouldAllBeEquivalentTo(new[]
+            projectorStats.GetEvents().Should().BeEquivalentTo(new[]
             {
                 new
                 {
@@ -168,6 +168,8 @@ namespace LiquidProjections.Specs
             //-----------------------------------------------------------------------------------------------------------
             TimeSpan? eta = stats.GetTimeToReach("myProjector", 100000);
 
+            stats.GetSpeed("myProjector").Should().Be(transactionsPerSecond);
+
             long secondsToComplete = (100000 - checkpoint) / transactionsPerSecond;
 
             eta.Should().Be(TimeSpan.FromSeconds(secondsToComplete));
@@ -202,6 +204,7 @@ namespace LiquidProjections.Specs
             //-----------------------------------------------------------------------------------------------------------
             // Assert
             //-----------------------------------------------------------------------------------------------------------
+
             TimeSpan? eta = stats.GetTimeToReach("myProjector", 100000);
 
             long secondsToComplete =((100000 - checkpoint) / transactionsPer5Seconds * 5);
@@ -242,6 +245,8 @@ namespace LiquidProjections.Specs
             TimeSpan? eta = stats.GetTimeToReach("myProjector", checkpoint + 100000);
 
             long weightedAveragePerSecond = 4550;
+            stats.GetSpeed("myProjector").Should().Be(weightedAveragePerSecond);
+
 
             long secondsToComplete = 100000 / weightedAveragePerSecond;
 
@@ -281,6 +286,7 @@ namespace LiquidProjections.Specs
             TimeSpan? eta = stats.GetTimeToReach("myProjector", checkpoint + 100000);
 
             long weightedAveragePerSecond = 645;
+            stats.GetSpeed("myProjector").Should().Be(weightedAveragePerSecond);
 
             long secondsToComplete = 100000 / weightedAveragePerSecond;
 
@@ -342,6 +348,7 @@ namespace LiquidProjections.Specs
             long secondsToComplete = (long) (100000 / precalculatedWeightedAveragePerSecond);
 
             eta.Should().Be(TimeSpan.FromSeconds(secondsToComplete));
+            stats.GetSpeed("myProjector").Should().BeApproximately(precalculatedWeightedAveragePerSecond, 1);
         }
 
         [Fact]
@@ -363,8 +370,8 @@ namespace LiquidProjections.Specs
             //-----------------------------------------------------------------------------------------------------------
             // Assert
             //-----------------------------------------------------------------------------------------------------------
-            TimeSpan? eta = stats.GetTimeToReach("myProjector", 5000);
-            eta.Should().Be(TimeSpan.Zero);
+            stats.GetSpeed("myProjector").Should().Be((10000-1000) / 120);
+            stats.GetTimeToReach("myProjector", 5000).Should().Be(TimeSpan.Zero);
         }
 
         [Fact]
@@ -384,6 +391,8 @@ namespace LiquidProjections.Specs
             // Assert
             //-----------------------------------------------------------------------------------------------------------
             eta.Should().NotHaveValue();
+
+            stats.GetSpeed("myProjector").Should().BeNull();
         }
     }
 }
