@@ -47,6 +47,16 @@ namespace LiquidProjections.Statistics
         }
 
         /// <summary>
+        /// Gets the speed in transactions per minute based on a weighted average over the last
+        /// ten minutes, or <c>null</c> if there is not enough information yet.        
+        /// </summary>
+        /// <param name="projectorId"></param>
+        public float? GetSpeed(string projectorId)
+        {
+            return this[projectorId].GetSpeed();
+        }
+
+        /// <summary>
         /// Calculates the expected time for the projector identified by <paramref name="projectorId"/> to reach a 
         /// certain <paramref name="targetCheckpoint"/> based on a weighted average over the last 
         /// ten minutes, or <c>null</c> if there is not enough information yet. Use <see cref="TrackProgress"/> to report

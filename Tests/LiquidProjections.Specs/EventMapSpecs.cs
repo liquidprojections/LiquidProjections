@@ -65,7 +65,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_creating_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -146,7 +146,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_creating_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -227,7 +227,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_creating_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -305,7 +305,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_updating_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -387,7 +387,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_updating_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -461,7 +461,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_deleting_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = (string) null,
@@ -528,7 +528,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_properly_pass_the_mapping_to_the_deleting_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = (string)null,
@@ -629,7 +629,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_not_invoke_any_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Electrics",
@@ -680,7 +680,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_invoke_the_right_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
@@ -907,7 +907,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_invoke_the_right_handler()
             {
-                projection.ShouldBeEquivalentTo(new
+                projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
                     Category = "Hybrids",
