@@ -382,7 +382,9 @@ namespace LiquidProjections.Testing
             private readonly object syncRoot = new object();
             private Task task;
             private TaskCompletionSource<long> progressCompletionSource = new TaskCompletionSource<long>();
-            private readonly TaskCompletionSource<bool> waitForCheckingWhetherItIsAheadCompletionSource = new TaskCompletionSource<bool>();
+            
+            private readonly TaskCompletionSource<bool> waitForCheckingWhetherItIsAheadCompletionSource =
+                new TaskCompletionSource<bool>();
             
             public Subscription(long lastProcessedCheckpoint, int batchSize,
                 Subscriber subscriber, string subscriptionId, MemoryEventSource memoryEventSource)
@@ -429,7 +431,7 @@ namespace LiquidProjections.Testing
                                     Dispose();
                                 }
                             },
-                            cancellationTokenSource.Token,
+                            CancellationToken.None,
                             TaskCreationOptions.DenyChildAttach | TaskCreationOptions.LongRunning,
                             TaskScheduler.Default)
                         .Unwrap();
@@ -438,6 +440,11 @@ namespace LiquidProjections.Testing
 
             private async Task RunAsync(SubscriptionInfo info)
             {
+                if (IsDisposed)
+                {
+                    return;
+                }
+                
                 long oldLastProcessedCheckpoint;
 
                 lock (syncRoot)
@@ -457,7 +464,7 @@ namespace LiquidProjections.Testing
 
                 int nextTransactionIndex = memoryEventSource.GetNextTransactionIndex(oldLastProcessedCheckpoint);
                 
-                while (!cancellationTokenSource.IsCancellationRequested)
+                while (!IsDisposed)
                 {
                     Task waitForNewTransactions = memoryEventSource.WaitForNewTransactions();
                     Transaction[] transactions = memoryEventSource.GetTransactionsFromIndex(nextTransactionIndex);
@@ -507,23 +514,30 @@ namespace LiquidProjections.Testing
                     {
                         isDisposed = true;
 
-                        // Run continuations and wait for the subscription task asynchronously.
-                        Task.Run(() =>
+                        progressCompletionSource.SetCanceled();
+                        waitForCheckingWhetherItIsAheadCompletionSource.TrySetCanceled();
+
+                        if (cancellationTokenSource != null)
                         {
-                            progressCompletionSource.SetCanceled();
-                            waitForCheckingWhetherItIsAheadCompletionSource.TrySetCanceled();
-
-                            if (cancellationTokenSource != null)
+                            try
                             {
-                                if (!cancellationTokenSource.IsCancellationRequested)
-                                {
-                                    cancellationTokenSource.Cancel();
-                                }
+                                cancellationTokenSource.Cancel();
+                            }
+                            catch (AggregateException) 
+                            {
+                                // Ignore.
+                            }
 
-                                task?.Wait();
+                            if (task == null)
+                            {
                                 cancellationTokenSource.Dispose();
                             }
-                        });
+                            else
+                            {
+                                // Run continuations and wait for the subscription task asynchronously.
+                                task.ContinueWith(_ => cancellationTokenSource.Dispose());
+                            }
+                        }
                     }
                 }
             }
