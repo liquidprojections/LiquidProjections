@@ -20,9 +20,9 @@ namespace LiquidProjections.Owin
 {
     internal class CustomNancyBootstrapper : DefaultNancyBootstrapper
     {
-        private readonly ProjectionStats stats;
+        private readonly IProjectionStats stats;
 
-        public CustomNancyBootstrapper(ProjectionStats stats)
+        public CustomNancyBootstrapper(IProjectionStats stats)
         {
             this.stats = stats;
         }

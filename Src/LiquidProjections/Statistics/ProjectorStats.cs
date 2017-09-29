@@ -5,13 +5,29 @@ using System.Linq;
 
 namespace LiquidProjections.Statistics
 {
+    public interface IProjectorStats
+    {
+        string ProjectorId { get; }
+        TimestampedCheckpoint LastCheckpoint { get; }
+
+        /// <summary>
+        /// Gets a snapshot of the properties stored for this projector at the time of calling.
+        /// </summary>
+        IDictionary<string, Property> GetProperties();
+
+        /// <summary>
+        /// Gets a snapshot of the events stored for this projector at the time of calling.
+        /// </summary>
+        IReadOnlyList<Event> GetEvents();
+    }
+
     /// <summary>
     /// Contains statistics and information about a particular projector.
     /// </summary>
     /// <remarks>
     /// An instance of this class is safe for use in multi-threaded solutions.
     /// </remarks>
-    public class ProjectorStats
+    public class ProjectorStats : IProjectorStats
     {
         private readonly object eventsSyncObject = new object();
         private readonly object progressSyncObject = new object();
