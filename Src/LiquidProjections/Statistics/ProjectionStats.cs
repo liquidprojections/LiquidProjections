@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ namespace LiquidProjections.Statistics
     /// <summary>
     /// Provides a thread-safe place to store all kinds of run-time information about the progress of a projector. 
     /// </summary>
-    public class ProjectionStats
+    public class ProjectionStats : IProjectionStats
     {
         private readonly Func<DateTime> nowUtc;
         private readonly ConcurrentDictionary<string, ProjectorStats> stats = new ConcurrentDictionary<string, ProjectorStats>();
@@ -67,10 +68,16 @@ namespace LiquidProjections.Statistics
             return this[projectorId].GetTimeToReach(targetCheckpoint);
         }
 
+        /// <inheritdoc />
+        public IProjectorStats Get(string projectorId)
+        {
+            return this[projectorId];
+        }
+
         /// <summary>
         /// Gets the statistics for a particular projector.
         /// </summary>
-        public ProjectorStats this[string projectorId]
+        private ProjectorStats this[string projectorId]
         {
             get
             {
@@ -78,9 +85,14 @@ namespace LiquidProjections.Statistics
             }
         }
 
-        public IEnumerable<ProjectorStats> GetForAllProjectors()
+        public IEnumerator<IProjectorStats> GetEnumerator()
         {
-            return stats.ToArray().Select(projectorStatsById => projectorStatsById.Value);
+            return stats.Values.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

@@ -6,7 +6,7 @@ namespace LiquidProjections.Owin
 {
     public static class MiddlewareExtensions
     {
-        public static IAppBuilder UseLiquidProjections(this IAppBuilder appBuilder, ProjectionStats stats)
+        public static IAppBuilder UseLiquidProjections(this IAppBuilder appBuilder, IProjectionStats stats)
         {
             appBuilder.Map("/projectionStats", a => a.UseNancy(new NancyOptions
             {

@@ -16,15 +16,15 @@ namespace LiquidProjections.Owin
 {
     internal class StatisticsModule : NancyModule
     {
-        public StatisticsModule(ProjectionStats stats, IResourceLinker resourceLinker)
+        public StatisticsModule(IProjectionStats stats, IResourceLinker resourceLinker)
         {
             Get("/", args =>
             {
-                var results = stats.GetForAllProjectors().OrderBy(p => p.ProjectorId).Select(p => new ProjectorSummary
+                var results = stats.OrderBy(p => p.ProjectorId).Select(p => new ProjectorSummary
                 {
                     ProjectorId = p.ProjectorId,
-                    LastCheckpoint = stats[p.ProjectorId].LastCheckpoint.Checkpoint,
-                    LastCheckpointUpdatedUtc = stats[p.ProjectorId].LastCheckpoint.TimestampUtc,
+                    LastCheckpoint = p.LastCheckpoint.Checkpoint,
+                    LastCheckpointUpdatedUtc = p.LastCheckpoint.TimestampUtc,
                     Url = Context.Request.Url + $"/{p.ProjectorId}"
                 });
 
@@ -34,13 +34,13 @@ namespace LiquidProjections.Owin
             Get("/{id}", args =>
             {
                 string id = args.Id;
-
+                
                 return new
                 {
                     ProjectorId = id,
-                    LastCheckpoint = stats[id].LastCheckpoint.Checkpoint,
-                    LastCheckpointUpdatedUtc = stats[id].LastCheckpoint.TimestampUtc,
-                    Properties = stats[id].GetProperties().Select(p => new ProjectorProperty
+                    LastCheckpoint = stats.Get(id).LastCheckpoint.Checkpoint,
+                    LastCheckpointUpdatedUtc = stats.Get(id).LastCheckpoint.TimestampUtc,
+                    Properties = stats.Get(id).GetProperties().Select(p => new ProjectorProperty
                     {
                         Key = p.Key,
                         Value = p.Value.Value,
@@ -60,7 +60,7 @@ namespace LiquidProjections.Owin
                 return new ProjectorEventCollection
                 {
                     ProjectorId = id,
-                    Events = stats[id].GetEvents().Select(@event => new ProjectorEvent
+                    Events = stats.Get(id).GetEvents().Select(@event => new ProjectorEvent
                     {
                         Body = @event.Body,
                         TimestampUtc = @event.TimestampUtc
@@ -72,7 +72,7 @@ namespace LiquidProjections.Owin
             {
                 string id = args.Id;
 
-                TimeSpan? eta = stats[id].GetTimeToReach(args.targetCheckpoint);
+                TimeSpan? eta = stats.GetTimeToReach(id, args.targetCheckpoint);
 
                 return new
                 {

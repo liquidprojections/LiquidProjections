@@ -1,11 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-
   <PropertyGroup>
     <TargetFramework>netstandard1.1</TargetFramework>
     <PackageId />
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <DefineConstants>TRACE;DEBUG;NETSTANDARD1_1;LIBLOG_PORTABLE</DefineConstants>
     <DocumentationFile>bin\Debug\netstandard1.1\LiquidProjections.xml</DocumentationFile>
@@ -13,7 +11,6 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
   </PropertyGroup>
-
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <DefineConstants>TRACE;RELEASE;LIBLOG_PORTABLE;NETSTANDARD1_1</DefineConstants>
     <DocumentationFile>bin\Release\netstandard1.1\LiquidProjections.xml</DocumentationFile>
@@ -21,15 +18,12 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
     <TreatSpecificWarningsAsErrors />
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="LibLog" Version="4.2.6" />
     <PackageReference Include="Microsoft.CSharp" Version="4.3.0" />
     <PackageReference Include="System.Dynamic.Runtime" Version="4.3.0" />
   </ItemGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\LiquidProjections.Abstractions\LiquidProjections.Abstractions.csproj" />
   </ItemGroup>
-
 </Project>
