@@ -11,6 +11,8 @@ namespace LiquidProjections
     /// </summary>
     public class Dispatcher
     {
+        private static readonly Task<ExceptionResolution> AbortExceptionResolutionTask = Task.FromResult(ExceptionResolution.Abort);
+
         private readonly CreateSubscription createSubscription;
 
         public Dispatcher(CreateSubscription createSubscription)
@@ -43,9 +45,9 @@ namespace LiquidProjections
         /// Configures the behavior of the dispatcher in case an exception is thrown by a subscriber. The default
         /// behavior is to dispose of the subscription.
         /// </summary>
-        public HandleException ExceptionHandler { get; set; } = (e, attempts, info) => Task.FromResult(ExceptionResolution.Abort);
+        public HandleException ExceptionHandler { get; set; } = (e, attempts, info) => AbortExceptionResolutionTask;
 
-        public HandleSuccess SuccessHandler { get; set; } = _ => Task.FromResult(false);
+        public HandleSuccess SuccessHandler { get; set; } = _ => SpecializedTasks.FalseTask;
 
         private async Task HandleTransactions(IReadOnlyList<Transaction> transactions, Func<IReadOnlyList<Transaction>, SubscriptionInfo, Task> handler, SubscriptionInfo info)
         {
@@ -176,6 +178,6 @@ namespace LiquidProjections
         /// If restarting is enabled through <see cref="RestartWhenAhead"/>, this property can be used to run some
         /// clean-up code before the dispatcher will restart at the first transaction.
         /// </summary>
-        public Func<Task> BeforeRestarting { get; set; } = () => Task.FromResult(0);
+        public Func<Task> BeforeRestarting { get; set; } = () => SpecializedTasks.ZeroTask;
     }
 }
