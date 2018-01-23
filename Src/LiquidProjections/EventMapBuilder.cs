@@ -562,7 +562,7 @@ namespace LiquidProjections
             eventMappingBuilder.As((anEvent, context) =>
             {
                 action(anEvent, context);
-                return Task.FromResult(0);
+                return SpecializedTasks.ZeroTask;
             });
         }
 
@@ -592,7 +592,7 @@ namespace LiquidProjections
             eventMappingBuilder.As((anEvent, context) =>
             {
                 action(anEvent);
-                return Task.FromResult(0);
+                return SpecializedTasks.ZeroTask;
             });
         }
 
@@ -837,7 +837,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent, context);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -867,7 +867,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -926,7 +926,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent, context);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -959,7 +959,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1020,7 +1020,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent, context);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1052,7 +1052,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1113,7 +1113,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent, context);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1146,7 +1146,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1207,7 +1207,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent, context);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 
@@ -1239,7 +1239,7 @@ namespace LiquidProjections
             eventActionBuilder.Using((projection, anEvent, context) =>
             {
                 projector(projection, anEvent);
-                return Task.FromResult(false);
+                return SpecializedTasks.FalseTask;
             });
         }
 

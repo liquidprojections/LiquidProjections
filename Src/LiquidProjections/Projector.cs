@@ -9,7 +9,7 @@ namespace LiquidProjections
     {
         private readonly IEventMap<ProjectionContext> map;
         private readonly IReadOnlyList<Projector> children;
-        private ShouldRetry shouldRetry = (exception, count) => Task.FromResult(false);
+        private ShouldRetry shouldRetry = (exception, count) => SpecializedTasks.FalseTask;
 
         public Projector(IEventMapBuilder<ProjectionContext> eventMapBuilder, IEnumerable<Projector> children = null)
             : this(BuildMap(eventMapBuilder), children)
