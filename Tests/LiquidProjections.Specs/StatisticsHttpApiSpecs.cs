@@ -4,6 +4,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
+using FluentAssertions.Extensions;
 using FluentAssertions.Json;
 using LiquidProjections.Owin;
 using LiquidProjections.Statistics;
@@ -50,7 +51,7 @@ namespace LiquidProjections.Specs
             {
                 var jtoken = JToken.Parse(await Result.Content.ReadAsStringAsync());
 
-                jtoken.Should().Be(JToken.Parse(@"
+                jtoken.Should().BeEquivalentTo(JToken.Parse(@"
                     [
                         {
                             ""projectorId"": ""id1"",
@@ -101,7 +102,7 @@ namespace LiquidProjections.Specs
             {
                 var jtoken = JToken.Parse(await Result.Content.ReadAsStringAsync());
 
-                jtoken.Should().Be(JToken.Parse(@"
+                jtoken.Should().BeEquivalentTo(JToken.Parse(@"
                     {
                         ""projectorId"": ""id1"",
                         ""lastCheckpoint"": 1000,
@@ -145,7 +146,7 @@ namespace LiquidProjections.Specs
             {
                 var jtoken = JToken.Parse(await Result.Content.ReadAsStringAsync());
 
-                jtoken.Should().Be(JToken.Parse(@"
+                jtoken.Should().BeEquivalentTo(JToken.Parse(@"
                     {
                         ""projectorId"": ""unknown"",
                         ""lastCheckpoint"": 0,
@@ -187,7 +188,7 @@ namespace LiquidProjections.Specs
             {
                 var jtoken = JToken.Parse(await Result.Content.ReadAsStringAsync());
 
-                jtoken.Should().Be(JToken.Parse(@"
+                jtoken.Should().BeEquivalentTo(JToken.Parse(@"
                     {
                         ""projectorId"": ""id1"",
                         ""events"": [{

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
+using FluentAssertions.Extensions;
 using LiquidProjections.Abstractions;
 using LiquidProjections.Testing;
 using Xunit;
@@ -143,7 +144,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void Then_it_should_not_fail()
             {
-                WhenAction.ShouldNotThrow();
+                WhenAction.Should().NotThrow();
             }
         }
 

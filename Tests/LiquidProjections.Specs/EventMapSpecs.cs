@@ -719,7 +719,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_allow_all_of_them()
             {
-                action.ShouldNotThrow();
+                action.Should().NotThrow();
             }
         }
 
@@ -959,7 +959,7 @@ namespace LiquidProjections.Specs
             [Fact]
             public void It_should_allow_all_of_them()
             {
-                action.ShouldNotThrow();
+                action.Should().NotThrow();
             }
         }
 

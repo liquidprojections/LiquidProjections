@@ -1,5 +1,6 @@
 ﻿using System;
 using FluentAssertions;
+using FluentAssertions.Extensions;
 using LiquidProjections.Statistics;
 using Xunit;
 

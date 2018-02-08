@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Chill;
 
 using FluentAssertions;
+using FluentAssertions.Extensions;
 using LiquidProjections.Abstractions;
 using LiquidProjections.Logging;
 using LiquidProjections.Testing;
@@ -69,6 +70,7 @@ namespace LiquidProjections.Specs
                 The<FakeLogProvider>().Exception.Should().Be(The<ProjectionException>());
             }
         }
+
         public class When_a_projector_throws_an_exception_but_requires_retrying : GivenSubject<Dispatcher>
         {
             private int attempts;
