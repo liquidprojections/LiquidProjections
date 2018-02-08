@@ -10,7 +10,7 @@ namespace LiquidProjections.Testing
     /// <summary>
     /// An event source which stores all the transactions in memory and has methods which are convenient for testing.
     /// </summary>
-    public partial class MemoryEventSource
+    public class MemoryEventSource
     {
         private readonly int batchSize;
         private readonly List<MemorySubscription> subscriptions = new List<MemorySubscription>();

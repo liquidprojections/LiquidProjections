@@ -21,7 +21,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <LangVersion>6</LangVersion>
+    <LangVersion>7</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
@@ -31,7 +31,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <LangVersion>6</LangVersion>
+    <LangVersion>7</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -83,6 +83,7 @@
   <ItemGroup>
     <Compile Include="DispatcherSpecs.cs" />
     <Compile Include="EventMapSpecs.cs" />
+    <Compile Include="MemoryEventSourceSpecs.cs" />
     <Compile Include="ProjectionExceptionSpecs.cs" />
     <Compile Include="ProjectionStatsSpecs.cs" />
     <Compile Include="ProjectorSpecs.cs" />

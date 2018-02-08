@@ -25,10 +25,10 @@ namespace LiquidProjections.Specs
             {
                 Given(() =>
                 {
+                    LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
+
                     UseThe(new MemoryEventSource());
                     WithSubject(_ => new Dispatcher(The<MemoryEventSource>().Subscribe));
-
-                    LogProvider.SetCurrentLogProvider(UseThe(new FakeLogProvider()));
 
                     UseThe(new ProjectionException("Some message."));
 

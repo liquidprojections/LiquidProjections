@@ -181,4 +181,5 @@ Build/**
 Tools/**
 
 # Visual Studio
-.vs/
+**/.vs/**
+.vs/**
