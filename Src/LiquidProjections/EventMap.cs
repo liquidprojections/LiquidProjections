@@ -26,7 +26,7 @@ namespace LiquidProjections
         /// <summary>
         /// Handles <paramref name="anEvent"/> asynchronously using context <paramref name="context"/>.
         /// </summary>
-        public async Task Handle(object anEvent, TContext context)
+        public async Task<bool> Handle(object anEvent, TContext context)
         {
             if (anEvent == null)
             {
@@ -40,15 +40,17 @@ namespace LiquidProjections
 
             Type key = anEvent.GetType();
 
-            List<Handler> handlers;
-
-            if (mappings.TryGetValue(key, out handlers))
+            if (mappings.TryGetValue(key, out var handlers))
             {
                 foreach (Handler handler in handlers)
                 {
                     await handler(anEvent, context);
                 }
+
+                return true;
             }
+
+            return false;
         }
 
         private delegate Task Handler(object @event, TContext context);

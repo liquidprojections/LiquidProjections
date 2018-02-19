@@ -13,6 +13,9 @@ namespace LiquidProjections
         /// <summary>
         /// Handles <paramref name="anEvent"/> asynchronously.
         /// </summary>
-        Task Handle(object anEvent, TContext context);
+        /// <remarks>
+        /// Returns a value indicating whether the event was handled by any event.
+        /// </remarks>
+        Task<bool> Handle(object anEvent, TContext context);
     }
 }
