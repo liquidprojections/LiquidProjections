@@ -627,6 +627,60 @@ namespace LiquidProjections.Specs
             }
         }
 
+        public class When_a_global_filter_is_not_met : GivenWhenThen
+        {
+            private string involvedKey = null;
+            private IEventMap<object> map;
+
+            public When_a_global_filter_is_not_met()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<object>()
+                        .Where((@event, context) =>
+                        {
+                            if (@event is ProductAddedToCatalogEvent addedEvent)
+                            {
+                                return Task.FromResult(addedEvent.Category == "Electric");
+                            }
+
+                            return Task.FromResult(true);
+                        });
+                    
+                    mapBuilder
+                        .Map<ProductAddedToCatalogEvent>()
+                        .As((e, ctx) =>
+                        {
+                            involvedKey = e.ProductKey;
+
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<object>
+                    {
+                        Custom = (context, projector) => projector() 
+                    });
+                });
+
+                When(async () =>
+                {
+                    await map.Handle(
+                        new ProductAddedToCatalogEvent
+                        {
+                            Category = "Hybrids",
+                            ProductKey = "c350E"
+                        },
+                        new object());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_invoke_any_handler()
+            {
+                involvedKey.Should().BeNull();
+            }
+        }
+
         public class When_a_condition_is_not_met : GivenWhenThen
         {
             private string involvedKey = null;
@@ -800,6 +854,69 @@ namespace LiquidProjections.Specs
             public void It_should_allow_decorating_the_custom_handler()
             {
                 customActionDecoratorExecuted.Should().BeTrue();
+            }
+        }
+
+        public class When_a_global_filter_is_not_met_on_a_projection : GivenWhenThen
+        {
+            private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
+
+            public When_a_global_filter_is_not_met_on_a_projection()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>()
+                        .Where((@event, context) =>
+                        {
+                            if (@event is ProductAddedToCatalogEvent addedEvent)
+                            {
+                                return Task.FromResult(addedEvent.Category == "Electric");
+                            }
+
+                            return Task.FromResult(true);
+                        });
+
+                    mapBuilder
+                        .Map<ProductAddedToCatalogEvent>()
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) =>
+                        {
+                            p.Category = e.Category;
+
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Update = async (key, context, projector, createIfMissing) =>
+                        {
+                            projection = new ProductCatalogEntry
+                            {
+                                Id = key,
+                            };
+
+                            await projector(projection);
+                        }
+                    });
+                });
+
+                When(async () =>
+                {
+                    await map.Handle(
+                        new ProductAddedToCatalogEvent
+                        {
+                            Category = "Hybrids",
+                            ProductKey = "c350E"
+                        },
+                        new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_invoke_any_handler()
+            {
+                projection.Should().BeNull();
             }
         }
 

@@ -14,6 +14,15 @@ namespace LiquidProjections
         private ProjectorMap<TContext> projector;
 
         /// <summary>
+        /// Ensures that only events matching the predicate are processed. 
+        /// </summary>
+        public EventMapBuilder<TContext> Where(Func<object, TContext, Task<bool>> filter)
+        {
+            eventMap.AddFilter(filter);
+            return this;
+        }
+
+        /// <summary>
         /// Starts configuring a new handler for events of type <typeparamref name="TEvent"/>.
         /// </summary>
         /// <returns>
@@ -127,6 +136,16 @@ namespace LiquidProjections
         private readonly EventMapBuilder<TContext> innerBuilder = new EventMapBuilder<TContext>();
         private ProjectorMap<TProjection, TKey, TContext> projector;
 
+        
+        /// <summary>
+        /// Ensures that only events matching the predicate are processed. 
+        /// </summary>
+        public EventMapBuilder<TProjection, TKey, TContext> Where(Func<object, TContext, Task<bool>> predicate)
+        {
+            innerBuilder.Where(predicate);
+            return this;
+        }
+        
         /// <summary>
         /// Starts configuring a new handler for events of type <typeparamref name="TEvent"/>.
         /// </summary>
