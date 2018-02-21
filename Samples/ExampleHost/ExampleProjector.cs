@@ -27,32 +27,34 @@ namespace LiquidProjections.ExampleHost
 
         private IEventMap<ProjectionContext> BuildMapFrom(IEventMapBuilder<TProjection, string, ProjectionContext> mapBuilder)
         {
-            mapBuilder.HandleProjectionModificationsAs((key, context, projector, options) =>
+            return mapBuilder.Build(new ProjectorMap<TProjection, string, ProjectionContext>
             {
-                TProjection projection = store.GetRepository<TProjection>().Find(key);
-                if (projection == null)
+                Create = async (key, context, projector, shouldOverride) =>
                 {
-                    projection = new TProjection()
+                    var projection = new TProjection()
                     {
                         Id = key
                     };
 
+                    await projector(projection);
+
                     store.Add(projection);
-                }
+                },
+                Update = async (key, context, projector, createIfMissing) =>
+                {
+                    TProjection projection = store.GetRepository<TProjection>().Find(key);
+                    await projector(projection);
 
-                return projector(projection);
+                    store.Add(projection);
+                },
+                Delete = (key, context) =>
+                {
+                    store.GetRepository<TProjection>().RemoveByKey(key);
+
+                    return Task.FromResult(true);
+                },
+                Custom = (context, projector) => projector()
             });
-
-            mapBuilder.HandleProjectionDeletionsAs((key, context, options) =>
-            {
-                store.GetRepository<TProjection>().RemoveByKey(key);
-
-                return Task.FromResult(0);
-            });
-
-            mapBuilder.HandleCustomActionsAs((context, projector) => projector());
-
-            return mapBuilder.Build();
         }
 
         public async Task Handle(IReadOnlyList<Transaction> transactions)

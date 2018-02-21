@@ -11,8 +11,6 @@ namespace LiquidProjections
     {
         private readonly Dictionary<Type, List<Handler>> mappings = new Dictionary<Type, List<Handler>>();
 
-        internal CustomHandler<TContext> Do { get; set; }
-
         internal void Add<TEvent>(Func<TEvent, TContext, Task> action)
         {
             if (!mappings.ContainsKey(typeof(TEvent)))
@@ -23,9 +21,6 @@ namespace LiquidProjections
             mappings[typeof(TEvent)].Add((@event, context) => action((TEvent)@event, context));
         }
 
-        /// <summary>
-        /// Handles <paramref name="anEvent"/> asynchronously using context <paramref name="context"/>.
-        /// </summary>
         public async Task<bool> Handle(object anEvent, TContext context)
         {
             if (anEvent == null)

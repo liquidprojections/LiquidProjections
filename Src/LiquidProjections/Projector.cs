@@ -24,8 +24,10 @@ namespace LiquidProjections
                 throw new ArgumentNullException(nameof(eventMapBuilder));
             }
 
-            SetupHandlers(eventMapBuilder);
-            return eventMapBuilder.Build();
+            return eventMapBuilder.Build(new ProjectorMap<ProjectionContext>
+            {
+                Custom = (context, projector) => projector()
+            });
         }
 
         public Projector(IEventMap<ProjectionContext> map, IEnumerable<Projector> children = null)
@@ -50,11 +52,6 @@ namespace LiquidProjections
             {
                 shouldRetry = value ?? throw new ArgumentNullException(nameof(value), "Retry policy is missing.");
             }
-        }
-
-        private static void SetupHandlers(IEventMapBuilder<ProjectionContext> eventMapBuilder)
-        {
-            eventMapBuilder.HandleCustomActionsAs((context, projector) => projector());
         }
 
         /// <summary>

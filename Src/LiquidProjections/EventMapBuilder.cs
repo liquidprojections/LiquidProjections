@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-
 using LiquidProjections.MapBuilding;
 
 namespace LiquidProjections
@@ -12,98 +11,74 @@ namespace LiquidProjections
     public sealed class EventMapBuilder<TContext> : IEventMapBuilder<TContext>
     {
         private readonly EventMap<TContext> eventMap = new EventMap<TContext>();
-        private bool isBuilt;
-        private CustomHandler<TContext> customHandler;
+        private ProjectorMap<TContext> projector;
 
         /// <summary>
         /// Starts configuring a new handler for events of type <typeparamref name="TEvent"/>.
         /// </summary>
         /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TContext}"/> that allows to continue configuring the handler.
+        /// <see cref="IAction{TEvent,TContext}"/> that allows to continue configuring the handler.
         /// </returns>
-        public IEventMappingBuilder<TEvent, TContext> Map<TEvent>()
+        public IAction<TEvent, TContext> Map<TEvent>()
         {
             AssertNotBuilt();
 
-            return new EventMappingBuilder<TEvent>(this);
+            return new Action<TEvent>(this, () => projector);
         }
 
         /// <summary>
-        /// Builds the resulting event map. Can only be called once.
-        /// No changes can be made after the event map has been built.
+        /// Builds the resulting event map. 
         /// </summary>
-        public IEventMap<TContext> Build()
+        /// <remarks>
+        /// Can only be called once.
+        /// No changes can be made after the event map has been built.
+        /// </remarks>
+        /// <param name="projector">
+        /// Contains the handler that a projector needs to support to handle events from this map. 
+        /// </param>
+        public IEventMap<TContext> Build(ProjectorMap<TContext> projector)
         {
             AssertNotBuilt();
-            AssertComplete();
 
-            isBuilt = true;
+            if (projector == null)
+            {
+                throw new ArgumentNullException(nameof(projector));
+            }
+
+            if (projector.Custom == null)
+            {
+                throw new ArgumentException(
+                    $"Expected the Custom property to point to a valid instance of {nameof(CustomHandler<TContext>)}", nameof(projector));
+            }
+
+            this.projector = projector;
+
             return eventMap;
         }
 
-        /// <summary>
-        /// Configures the event map to handle custom actions via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        public void HandleCustomActionsAs(CustomHandler<TContext> handler)
+        private void AssertNotBuilt()
         {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
-
-            if (customHandler != null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TContext>.HandleCustomActionsAs)} was already called.");
-            }
-
-            AssertNotBuilt();
-
-            customHandler = handler;
-        }
-
-        internal void Add<TEvent>(Func<TEvent, TContext, Task> action)
-        {
-            if (action == null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
-            AssertNotBuilt();
-
-            eventMap.Add(action);
-        }
-
-        internal void AssertNotBuilt()
-        {
-            if (isBuilt)
+            if (projector != null)
             {
                 throw new InvalidOperationException("The event map has already been built.");
             }
         }
 
-        private void AssertComplete()
+        private sealed class Action<TEvent> : IAction<TEvent, TContext>
         {
-            if (customHandler == null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TContext>.HandleCustomActionsAs)} was not called.");
-            }
-        }
-
-        internal sealed class EventMappingBuilder<TEvent> : IEventMappingBuilder<TEvent, TContext>
-        {
-            private readonly EventMapBuilder<TContext> eventMapBuilder;
+            private readonly EventMapBuilder<TContext> parent;
+            private readonly Func<ProjectorMap<TContext>> getProjector;
 
             private readonly List<Func<TEvent, TContext, Task<bool>>> predicates =
                 new List<Func<TEvent, TContext, Task<bool>>>();
 
-            public EventMappingBuilder(EventMapBuilder<TContext> eventMapBuilder)
+            public Action(EventMapBuilder<TContext> parent, Func<ProjectorMap<TContext>> getProjector)
             {
-                this.eventMapBuilder = eventMapBuilder;
+                this.parent = parent;
+                this.getProjector = getProjector;
             }
 
-            public IEventMappingBuilder<TEvent, TContext> When(Func<TEvent, TContext, Task<bool>> predicate)
+            public IAction<TEvent, TContext> When(Func<TEvent, TContext, Task<bool>> predicate)
             {
                 if (predicate == null)
                 {
@@ -121,12 +96,12 @@ namespace LiquidProjections
                     throw new ArgumentNullException(nameof(action));
                 }
 
-                Add((anEvent, context) => eventMapBuilder.customHandler(context, async () => await action(anEvent, context)));
+                Add((anEvent, context) => getProjector().Custom(context, async () => await action(anEvent, context)));
             }
 
-            internal void Add(Func<TEvent, TContext, Task> action)
+            private void Add(Func<TEvent, TContext, Task> action)
             {
-                eventMapBuilder.Add<TEvent>(async (anEvent, context) =>
+                parent.eventMap.Add<TEvent>(async (anEvent, context) =>
                 {
                     foreach (Func<TEvent, TContext, Task<bool>> predicate in predicates)
                     {
@@ -150,204 +125,112 @@ namespace LiquidProjections
     public sealed class EventMapBuilder<TProjection, TKey, TContext> : IEventMapBuilder<TProjection, TKey, TContext>
     {
         private readonly EventMapBuilder<TContext> innerBuilder = new EventMapBuilder<TContext>();
-        private ProjectionModificationHandler<TProjection, TKey, TContext> projectionModificationHandler;
-        private ProjectionDeletionHandler<TKey, TContext> projectionDeletionHandler;
+        private ProjectorMap<TProjection, TKey, TContext> projector;
 
         /// <summary>
         /// Starts configuring a new handler for events of type <typeparamref name="TEvent"/>.
         /// </summary>
         /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/> that allows to continue configuring the handler.
+        /// <see cref="ICrudAction{TEvent,TProjection,TKey,TContext}"/> that allows to continue configuring the handler.
         /// </returns>
-        public IEventMappingBuilder<TEvent, TProjection, TKey, TContext> Map<TEvent>()
+        public ICrudAction<TEvent, TProjection, TKey, TContext> Map<TEvent>()
         {
-            innerBuilder.AssertNotBuilt();
-
-            return new ProjectionEventMappingBuilder<TEvent>(this);
+            return new CrudAction<TEvent>(this);
         }
 
         /// <summary>
-        /// Builds the resulting event map. Can only be called once.
+        /// Builds the resulting event map. 
+        /// </summary>
+        /// <remarks>
+        /// Can only be called once.
         /// No changes can be made after the event map has been built.
-        /// </summary>
-        public IEventMap<TContext> Build()
+        /// </remarks>
+        /// <param name="projector">
+        /// Contains the create, update, delete and custom handlers that a projector needs to support to handle events from this map. 
+        /// </param>
+        public IEventMap<TContext> Build(ProjectorMap<TProjection, TKey, TContext> projector)
         {
-            innerBuilder.AssertNotBuilt();
-            AssertComplete();
-
-            return innerBuilder.Build();
+            this.projector = projector;
+            return innerBuilder.Build(new ProjectorMap<TContext>
+            {
+                Custom = (context, projectEvent) => projectEvent()
+            });
         }
 
-        /// <summary>
-        /// Configures the event map to handle custom actions via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        public void HandleCustomActionsAs(CustomHandler<TContext> handler)
+        private sealed class CrudAction<TEvent> : ICrudAction<TEvent, TProjection, TKey, TContext>
         {
-            innerBuilder.HandleCustomActionsAs(handler);
-        }
+            private readonly IAction<TEvent, TContext> actionBuilder;
+            private readonly Func<ProjectorMap<TProjection, TKey, TContext> > getProjector;
 
-        /// <summary>
-        /// Configures the event map to handle projection creation and updating
-        /// via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        public void HandleProjectionModificationsAs(ProjectionModificationHandler<TProjection, TKey, TContext> handler)
-        {
-            if (handler == null)
+            public CrudAction(EventMapBuilder<TProjection, TKey, TContext> parent)
             {
-                throw new ArgumentNullException(nameof(handler));
+                actionBuilder = parent.innerBuilder.Map<TEvent>();
+                getProjector = () => parent.projector;
             }
 
-            if (projectionModificationHandler != null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TProjection, TKey, TContext>.HandleProjectionModificationsAs)} " +
-                    "was already called.");
-            }
-
-            innerBuilder.AssertNotBuilt();
-
-            projectionModificationHandler = handler;
-        }
-
-        /// <summary>
-        /// Configures the event map to handle projection deletion
-        /// via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        public void HandleProjectionDeletionsAs(ProjectionDeletionHandler<TKey, TContext> handler)
-        {
-            if (handler == null)
-            {
-                throw new ArgumentNullException(nameof(handler));
-            }
-
-            if (projectionDeletionHandler != null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TProjection, TKey, TContext>.HandleProjectionDeletionsAs)} was already called.");
-            }
-
-            innerBuilder.AssertNotBuilt();
-
-            projectionDeletionHandler = handler;
-        }
-
-        private void AssertComplete()
-        {
-            if (projectionModificationHandler == null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TProjection, TKey, TContext>.HandleProjectionModificationsAs)} was not called.");
-            }
-
-            if (projectionDeletionHandler == null)
-            {
-                throw new InvalidOperationException(
-                    $"{nameof(IEventMapBuilder<TProjection, TKey, TContext>.HandleProjectionDeletionsAs)} was not called.");
-            }
-        }
-
-        private sealed class ProjectionEventMappingBuilder<TEvent> : IEventMappingBuilder<TEvent, TProjection, TKey, TContext>
-        {
-            private static readonly ProjectionDeletionOptions optionsForDelete =
-                new ProjectionDeletionOptions(MissingProjectionDeletionBehavior.Throw);
-
-            private static readonly ProjectionDeletionOptions optionsForDeleteIfExists =
-                new ProjectionDeletionOptions(MissingProjectionDeletionBehavior.Ignore);
-
-            private readonly EventMapBuilder<TContext>.EventMappingBuilder<TEvent> innerBuilder;
-            private readonly EventMapBuilder<TProjection, TKey, TContext> eventMapBuilder;
-
-            public ProjectionEventMappingBuilder(EventMapBuilder<TProjection, TKey, TContext> eventMapBuilder)
-            {
-                innerBuilder = new EventMapBuilder<TContext>.EventMappingBuilder<TEvent>(eventMapBuilder.innerBuilder);
-                this.eventMapBuilder = eventMapBuilder;
-            }
-
-            public ICreateEventActionBuilder<TEvent, TProjection, TContext> AsCreateOf(Func<TEvent, TKey> getKey)
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateOf(Func<TEvent, TKey> getKey)
             {
                 if (getKey == null)
                 {
                     throw new ArgumentNullException(nameof(getKey));
                 }
 
-                return new CreateEventActionBuilder(this, getKey);
+                return new CreateAction(actionBuilder, getProjector, getKey);
             }
 
-            public ICreateIfDoesNotExistEventActionBuilder<TEvent, TProjection, TContext> AsCreateIfDoesNotExistOf(
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateIfDoesNotExistOf(
                 Func<TEvent, TKey> getKey)
             {
-                if (getKey == null)
-                {
-                    throw new ArgumentNullException(nameof(getKey));
-                }
-
-                return new CreateIfDoesNotExistEventActionBuilder(this, getKey);
+                return AsCreateOf(getKey).IgnoringDuplicates();
             }
 
-            public ICreateOrUpdateEventActionBuilder<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TKey> getKey)
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TKey> getKey)
+            {
+                return AsCreateOf(getKey).OverwritingDuplicates();
+            }
+
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteOf(Func<TEvent, TKey> getKey)
             {
                 if (getKey == null)
                 {
                     throw new ArgumentNullException(nameof(getKey));
                 }
 
-                return new CreateOrUpdateEventActionBuilder(this, getKey);
+                return new DeleteAction(actionBuilder, getProjector, getKey);
             }
 
-            public void AsDeleteOf(Func<TEvent, TKey> getKey)
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent, TKey> getKey)
+            {
+                return AsDeleteOf(getKey).IgnoringMisses();
+            }
+
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent, TKey> getKey)
             {
                 if (getKey == null)
                 {
                     throw new ArgumentNullException(nameof(getKey));
                 }
 
-                innerBuilder.Add((anEvent, context) =>
-                    eventMapBuilder.projectionDeletionHandler(getKey(anEvent), context, optionsForDelete));
+                return new UpdateAction(actionBuilder, getProjector, getKey);
             }
 
-            public void AsDeleteIfExistsOf(Func<TEvent, TKey> getKey)
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TKey> getKey)
             {
-                if (getKey == null)
-                {
-                    throw new ArgumentNullException(nameof(getKey));
-                }
-
-                innerBuilder.Add((anEvent, context) =>
-                    eventMapBuilder.projectionDeletionHandler(getKey(anEvent), context, optionsForDeleteIfExists));
-            }
-
-            public IUpdateEventActionBuilder<TEvent, TProjection, TContext> AsUpdateOf(Func<TEvent, TKey> getKey)
-            {
-                if (getKey == null)
-                {
-                    throw new ArgumentNullException(nameof(getKey));
-                }
-
-                return new UpdateEventActionBuilder(this, getKey);
-            }
-
-            public IUpdateIfExistsEventActionBuilder<TEvent, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TKey> getKey)
-            {
-                if (getKey == null)
-                {
-                    throw new ArgumentNullException(nameof(getKey));
-                }
-
-                return new UpdateIfExistsEventActionBuilder(this, getKey);
+                return AsUpdateOf(getKey).IgnoringMisses();
             }
 
             public void As(Func<TEvent, TContext, Task> action)
             {
-                innerBuilder.As(action);
+                actionBuilder.As((anEvent, context) => getProjector().Custom(context, () => action(anEvent, context)));
             }
 
-            IEventMappingBuilder<TEvent, TContext> IEventMappingBuilder<TEvent, TContext>.When(
+            IAction<TEvent, TContext> IAction<TEvent, TContext>.When(
                 Func<TEvent, TContext, Task<bool>> predicate)
             {
                 return When(predicate);
             }
 
-            public IEventMappingBuilder<TEvent, TProjection, TKey, TContext> When(
+            public ICrudAction<TEvent, TProjection, TKey, TContext> When(
                 Func<TEvent, TContext, Task<bool>> predicate)
             {
                 if (predicate == null)
@@ -355,920 +238,170 @@ namespace LiquidProjections
                     throw new ArgumentNullException(nameof(predicate));
                 }
 
-                innerBuilder.When(predicate);
+                actionBuilder.When(predicate);
                 return this;
             }
 
-            private sealed class CreateEventActionBuilder :
-                ICreateEventActionBuilder<TEvent, TProjection, TContext>
+            private sealed class CreateAction : ICreateAction<TEvent, TProjection, TContext>
             {
-                private static readonly ProjectionModificationOptions options = new ProjectionModificationOptions(
-                    MissingProjectionModificationBehavior.Create,
-                    ExistingProjectionModificationBehavior.Throw);
+                private Func<TProjection, TEvent, TContext, bool> shouldOverwrite;
 
-                private readonly ProjectionEventMappingBuilder<TEvent> eventMappingBuilder;
+                private readonly IAction<TEvent, TContext> actionBuilder;
+                private readonly Func<ProjectorMap<TProjection, TKey, TContext>> projector;
                 private readonly Func<TEvent, TKey> getKey;
 
-                public CreateEventActionBuilder(
-                    ProjectionEventMappingBuilder<TEvent> eventMappingBuilder,
-                    Func<TEvent, TKey> getKey)
+                public CreateAction(IAction<TEvent, TContext> actionBuilder,
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
                 {
-                    this.eventMappingBuilder = eventMappingBuilder;
+                    this.actionBuilder = actionBuilder;
+                    this.projector = projector;
                     this.getKey = getKey;
+
+                    shouldOverwrite = (existingProjection, @event, context) =>
+                        throw new ProjectionException(
+                            $"Projection {typeof(TProjection)} with key {getKey(@event)}already exists.");
                 }
 
-                public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+                public ICreateAction<TEvent, TProjection, TContext> Using(Func<TProjection, TEvent, TContext, Task> projector)
                 {
                     if (projector == null)
                     {
                         throw new ArgumentNullException(nameof(projector));
                     }
 
-                    eventMappingBuilder.innerBuilder.Add((anEvent, context) =>
-                        eventMappingBuilder.eventMapBuilder.projectionModificationHandler(
+                    actionBuilder.As((anEvent, context) => this.projector().Create(
                             getKey(anEvent),
                             context,
                             projection => projector(projection, anEvent, context),
-                            options));
+                            existingProjection => shouldOverwrite(existingProjection, anEvent, context)));
+
+                    return this;
+                }
+
+                public ICreateAction<TEvent, TProjection, TContext>  IgnoringDuplicates()
+                {
+                    shouldOverwrite = (duplicate, @event,context) => false;
+                    return this;
+                }
+
+                public ICreateAction<TEvent, TProjection, TContext> OverwritingDuplicates()
+                {
+                    shouldOverwrite = (duplicate, @event,context) => true;
+                    return this;
+                }
+
+                public ICreateAction<TEvent, TProjection, TContext> HandlingDuplicatesUsing(Func<TProjection, TEvent, TContext, bool> shouldOverwrite)
+                {
+                    this.shouldOverwrite = shouldOverwrite;
+                    return this;
                 }
             }
 
-            private sealed class CreateIfDoesNotExistEventActionBuilder :
-                ICreateIfDoesNotExistEventActionBuilder<TEvent, TProjection, TContext>
+            private sealed class UpdateAction : IUpdateAction<TEvent, TKey, TProjection, TContext>
             {
-                private static readonly ProjectionModificationOptions options = new ProjectionModificationOptions(
-                    MissingProjectionModificationBehavior.Create,
-                    ExistingProjectionModificationBehavior.Ignore);
-
-                private readonly ProjectionEventMappingBuilder<TEvent> eventMappingBuilder;
+                private readonly IAction<TEvent, TContext> actionBuilder;
+                private readonly Func<ProjectorMap<TProjection, TKey, TContext>> projector;
                 private readonly Func<TEvent, TKey> getKey;
+                private Func<TKey, TContext, bool> handleMissesUsing;
 
-                public CreateIfDoesNotExistEventActionBuilder(
-                    ProjectionEventMappingBuilder<TEvent> eventMappingBuilder,
-                    Func<TEvent, TKey> getKey)
+                public UpdateAction(IAction<TEvent, TContext> actionBuilder,
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
                 {
-                    this.eventMappingBuilder = eventMappingBuilder;
+                    this.projector = projector;
+                    this.actionBuilder = actionBuilder;
                     this.getKey = getKey;
+
+                    ThrowingIfMissing();
                 }
 
-                public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+                public IUpdateAction<TEvent, TKey, TProjection, TContext> Using(Func<TProjection, TEvent, TContext, Task> updateAction)
                 {
-                    if (projector == null)
+                    if (updateAction == null)
                     {
-                        throw new ArgumentNullException(nameof(projector));
+                        throw new ArgumentNullException(nameof(updateAction));
                     }
 
-                    eventMappingBuilder.innerBuilder.Add((anEvent, context) =>
-                        eventMappingBuilder.eventMapBuilder.projectionModificationHandler(
-                            getKey(anEvent),
-                            context,
-                            projection => projector(projection, anEvent, context),
-                            options));
+                    actionBuilder.As((anEvent, context) => OnUpdate(updateAction, anEvent, context));
+
+                    return this;
+                }
+
+                private async Task OnUpdate(Func<TProjection, TEvent, TContext, Task> projector, TEvent anEvent, TContext context)
+                {
+                    var key = getKey(anEvent);
+                    
+                    await this.projector().Update(
+                        key,
+                        context,
+                        projection => projector(projection, anEvent, context),
+                        () => handleMissesUsing(key, context));
+                }
+
+                public IUpdateAction<TEvent, TKey, TProjection, TContext> ThrowingIfMissing()
+                {
+                    handleMissesUsing = (key, ctx) => throw new ProjectionException($"Failed to find {typeof(TProjection).Name} with key {key}");
+                    return this;
+                }
+
+                public IUpdateAction<TEvent, TKey, TProjection, TContext> IgnoringMisses()
+                {
+                    handleMissesUsing = (_, __) => false;
+                    return this;
+                }
+
+                public IUpdateAction<TEvent, TKey, TProjection, TContext> CreatingIfMissing()
+                {
+                    handleMissesUsing = (_, __) => true;
+                    return this;
+                }
+
+                public IUpdateAction<TEvent, TKey, TProjection, TContext> HandlingMissesUsing(Func<TKey, TContext, bool> action)
+                {
+                    handleMissesUsing = action;
+                    return this;
                 }
             }
 
-            private sealed class UpdateEventActionBuilder :
-                IUpdateEventActionBuilder<TEvent, TProjection, TContext>
+            private class DeleteAction : IDeleteAction<TEvent, TKey, TContext>
             {
-                private static readonly ProjectionModificationOptions options = new ProjectionModificationOptions(
-                    MissingProjectionModificationBehavior.Throw,
-                    ExistingProjectionModificationBehavior.Update);
+                private Action<TKey, TContext> handleMissing;
 
-                private readonly ProjectionEventMappingBuilder<TEvent> eventMappingBuilder;
-                private readonly Func<TEvent, TKey> getKey;
-
-                public UpdateEventActionBuilder(
-                    ProjectionEventMappingBuilder<TEvent> eventMappingBuilder,
-                    Func<TEvent, TKey> getKey)
+                public DeleteAction(IAction<TEvent, TContext> actionBuilder,
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
                 {
-                    this.eventMappingBuilder = eventMappingBuilder;
-                    this.getKey = getKey;
+                    actionBuilder.As((anEvent, context) => OnDelete(projector(), getKey, anEvent, context));
+
+                    ThrowingIfMissing();
                 }
 
-                public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+                private async Task OnDelete(ProjectorMap<TProjection, TKey, TContext> projector, Func<TEvent, TKey> getKey, TEvent anEvent, TContext context)
                 {
-                    if (projector == null)
+                    TKey key = getKey(anEvent);
+                    bool deleted = await projector.Delete(key, context);
+                    if (!deleted)
                     {
-                        throw new ArgumentNullException(nameof(projector));
+                        handleMissing(key, context);
                     }
-
-                    eventMappingBuilder.innerBuilder.Add((anEvent, context) =>
-                        eventMappingBuilder.eventMapBuilder.projectionModificationHandler(
-                            getKey(anEvent),
-                            context,
-                            projection => projector(projection, anEvent, context),
-                            options));
                 }
-            }
 
-            private sealed class UpdateIfExistsEventActionBuilder :
-                IUpdateIfExistsEventActionBuilder<TEvent, TProjection, TContext>
-            {
-                private static readonly ProjectionModificationOptions options = new ProjectionModificationOptions(
-                    MissingProjectionModificationBehavior.Ignore,
-                    ExistingProjectionModificationBehavior.Update);
-
-                private readonly ProjectionEventMappingBuilder<TEvent> eventMappingBuilder;
-                private readonly Func<TEvent, TKey> getKey;
-
-                public UpdateIfExistsEventActionBuilder(
-                    ProjectionEventMappingBuilder<TEvent> eventMappingBuilder,
-                    Func<TEvent, TKey> getKey)
+                public IDeleteAction<TEvent, TKey, TContext> ThrowingIfMissing()
                 {
-                    this.eventMappingBuilder = eventMappingBuilder;
-                    this.getKey = getKey;
+                    handleMissing = (key, ctx) => throw new ProjectionException($"Could not delete {typeof(TProjection).Name} with key {key} because it does not exist");;
+                    return this;
                 }
 
-                public void Using(Func<TProjection, TEvent, TContext, Task> projector)
+                public IDeleteAction<TEvent, TKey, TContext> IgnoringMisses()
                 {
-                    if (projector == null)
-                    {
-                        throw new ArgumentNullException(nameof(projector));
-                    }
-
-                    eventMappingBuilder.innerBuilder.Add((anEvent, context) =>
-                        eventMappingBuilder.eventMapBuilder.projectionModificationHandler(
-                            getKey(anEvent),
-                            context,
-                            projection => projector(projection, anEvent, context),
-                            options));
+                    handleMissing = (_, __) => {};
+                    return this;
                 }
-            }
 
-            private sealed class CreateOrUpdateEventActionBuilder :
-                ICreateOrUpdateEventActionBuilder<TEvent, TProjection, TContext>
-            {
-                private static readonly ProjectionModificationOptions options = new ProjectionModificationOptions(
-                    MissingProjectionModificationBehavior.Create,
-                    ExistingProjectionModificationBehavior.Update);
-
-                private readonly ProjectionEventMappingBuilder<TEvent> eventMappingBuilder;
-                private readonly Func<TEvent, TKey> getKey;
-
-                public CreateOrUpdateEventActionBuilder(
-                    ProjectionEventMappingBuilder<TEvent> eventMappingBuilder,
-                    Func<TEvent, TKey> getKey)
+                public IDeleteAction<TEvent, TKey, TContext> HandlingMissesUsing(Action<TKey, TContext> action)
                 {
-                    this.eventMappingBuilder = eventMappingBuilder;
-                    this.getKey = getKey;
-                }
-
-                public void Using(Func<TProjection, TEvent, TContext, Task> projector)
-                {
-                    if (projector == null)
-                    {
-                        throw new ArgumentNullException(nameof(projector));
-                    }
-
-                    eventMappingBuilder.innerBuilder.Add((anEvent, context) =>
-                        eventMappingBuilder.eventMapBuilder.projectionModificationHandler(
-                            getKey(anEvent),
-                            context,
-                            projection => projector(projection, anEvent, context),
-                            options));
+                    handleMissing = action;
+                    return this;
                 }
             }
-        }
-    }
-
-    /// <summary>
-    /// Contains extension methods to map events to handlers in a fluent fashion.
-    /// </summary>
-    public static class EventMapBuilderExtensions
-    {
-        /// <summary>
-        /// Finishes configuring a custom handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="action">
-        /// The synchronous delegate that handles the event.
-        /// Takes the event and the context as the parameters.
-        /// </param>
-        public static void As<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Action<TEvent, TContext> action)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (action == null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
-            eventMappingBuilder.As((anEvent, context) =>
-            {
-                action(anEvent, context);
-                return SpecializedTasks.ZeroTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a custom handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="action">
-        /// The synchronous delegate that handles the event.
-        /// Takes the event as the parameter.
-        /// </param>
-        public static void As<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Action<TEvent> action)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (action == null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
-            eventMappingBuilder.As((anEvent, context) =>
-            {
-                action(anEvent);
-                return SpecializedTasks.ZeroTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a custom handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="action">
-        /// The asynchronous delegate that handles the event.
-        /// Takes the event as the parameter.
-        /// </param>
-        public static void As<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Func<TEvent, Task> action)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (action == null)
-            {
-                throw new ArgumentNullException(nameof(action));
-            }
-
-            eventMappingBuilder.As((anEvent, context) => action(anEvent));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The synchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event and the context as the parameters.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TContext> When<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Func<TEvent, TContext, bool> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => Task.FromResult(predicate(anEvent, context)));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The synchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event as the parameter.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TContext> When<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Func<TEvent, bool> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => Task.FromResult(predicate(anEvent)));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The asynchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event as the parameter.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TContext> When<TEvent, TContext>(
-            this IEventMappingBuilder<TEvent, TContext> eventMappingBuilder,
-            Func<TEvent, Task<bool>> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => predicate(anEvent));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> with key of type <typeparamref name="TKey"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The synchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event and the context as the parameters.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TProjection, TKey, TContext> When<TEvent, TProjection, TKey, TContext>(
-            this IEventMappingBuilder<TEvent, TProjection, TKey, TContext> eventMappingBuilder,
-            Func<TEvent, TContext, bool> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => Task.FromResult(predicate(anEvent, context)));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> with key of type <typeparamref name="TKey"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The synchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event as the parameter.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TProjection, TKey, TContext> When<TEvent, TProjection, TKey, TContext>(
-            this IEventMappingBuilder<TEvent, TProjection, TKey, TContext> eventMappingBuilder,
-            Func<TEvent, bool> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => Task.FromResult(predicate(anEvent)));
-        }
-
-        /// <summary>
-        /// Continues configuring a handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> with key of type <typeparamref name="TKey"/>
-        /// using context of type <typeparamref name="TContext"/>.
-        /// Provides an additional condition that needs to be satisfied in order for the event to be handled by the handler.
-        /// </summary>
-        /// <param name="eventMappingBuilder">The <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/>.</param>
-        /// <param name="predicate">
-        /// The asynchronous delegate that filters the events and
-        /// should return <c>true</c> for events that will be handled by the handler.
-        /// Takes the event as the parameter.
-        /// </param>
-        /// <returns>
-        /// <see cref="IEventMappingBuilder{TEvent,TProjection,TKey,TContext}"/> that allows to continue configuring the handler.
-        /// </returns>
-        public static IEventMappingBuilder<TEvent, TProjection, TKey, TContext> When<TEvent, TProjection, TKey, TContext>(
-            this IEventMappingBuilder<TEvent, TProjection, TKey, TContext> eventMappingBuilder,
-            Func<TEvent, Task<bool>> predicate)
-        {
-            if (eventMappingBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventMappingBuilder));
-            }
-
-            if (predicate == null)
-            {
-                throw new ArgumentNullException(nameof(predicate));
-            }
-
-            return eventMappingBuilder.When((anEvent, context) => predicate(anEvent));
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">The <see cref="ICreateEventActionBuilder{TEvent,TProjection,TContext}"/>.</param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection.
-        /// Takes the projection, the event and the context as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent, TContext> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent, context);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">The <see cref="ICreateEventActionBuilder{TEvent,TProjection,TContext}"/>.</param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">The <see cref="ICreateEventActionBuilder{TEvent,TProjection,TContext}"/>.</param>
-        /// <param name="projector">
-        /// The asynchronous delegate that initializes the created projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Func<TProjection, TEvent, Task> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) => projector(projection, anEvent));
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for projections which do not exist yet 
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateIfDoesNotExistEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection.
-        /// Takes the projection, the event and the context as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateIfDoesNotExistEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent, TContext> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent, context);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for projections which do not exist yet 
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateIfDoesNotExistEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateIfDoesNotExistEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation handler for projections which do not exist yet 
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateIfDoesNotExistEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The asynchronous delegate that initializes the created projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateIfDoesNotExistEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Func<TProjection, TEvent, Task> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) => projector(projection, anEvent));
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that updates the projection.
-        /// Takes the projection, the event and the context as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent, TContext> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent, context);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that updates the projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The asynchronous delegate that updates the projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Func<TProjection, TEvent, Task> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) => projector(projection, anEvent));
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for projections which do already exist
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateIfExistsEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that updates the projection.
-        /// Takes the projection, the event and the context as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateIfExistsEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent, TContext> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent, context);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for projections which do already exist
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateIfExistsEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that updates the projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateIfExistsEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection updating handler for projections which do already exist
-        /// for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="IUpdateIfExistsEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The asynchronous delegate that updates the projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this IUpdateIfExistsEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Func<TProjection, TEvent, Task> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) => projector(projection, anEvent));
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation or updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateOrUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection or updates the existing projection.
-        /// Takes the projection, the event and the context as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateOrUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent, TContext> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent, context);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation or updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateOrUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The synchronous delegate that initializes the created projection or updates the existing projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateOrUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Action<TProjection, TEvent> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) =>
-            {
-                projector(projection, anEvent);
-                return SpecializedTasks.FalseTask;
-            });
-        }
-
-        /// <summary>
-        /// Finishes configuring a projection creation or updating handler for events of type <typeparamref name="TEvent"/>
-        /// for projections of type <typeparamref name="TProjection"/> using context of type <typeparamref name="TContext"/>.
-        /// </summary>
-        /// <param name="eventActionBuilder">
-        /// The <see cref="ICreateOrUpdateEventActionBuilder{TEvent,TProjection,TContext}"/>.
-        /// </param>
-        /// <param name="projector">
-        /// The asynchronous delegate that initializes the created projection or updates the existing projection.
-        /// Takes the projection and the event as the parameters.
-        /// </param>
-        public static void Using<TEvent, TProjection, TContext>(
-            this ICreateOrUpdateEventActionBuilder<TEvent, TProjection, TContext> eventActionBuilder,
-            Func<TProjection, TEvent, Task> projector)
-        {
-            if (eventActionBuilder == null)
-            {
-                throw new ArgumentNullException(nameof(eventActionBuilder));
-            }
-
-            if (projector == null)
-            {
-                throw new ArgumentNullException(nameof(projector));
-            }
-
-            eventActionBuilder.Using((projection, anEvent, context) => projector(projection, anEvent));
         }
     }
 }
