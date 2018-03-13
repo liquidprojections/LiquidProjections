@@ -11,12 +11,7 @@ namespace LiquidProjections
         /// <summary>
         /// Builds the resulting event map. Can only be called once.
         /// </summary>
-        IEventMap<TContext> Build();
-
-        /// <summary>
-        /// Configures the event map to handle custom actions via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        void HandleCustomActionsAs(CustomHandler<TContext> handler);
+        IEventMap<TContext> Build(ProjectorMap<TContext> projector);
     }
 
     /// <summary>
@@ -33,154 +28,102 @@ namespace LiquidProjections
     /// <typeparam name="TProjection">Type of the projections.</typeparam>
     /// <typeparam name="TKey">Type of the projection keys.</typeparam>
     /// <typeparam name="TContext">Type of the context.</typeparam>
-    public interface IEventMapBuilder<in TProjection, out TKey, TContext> : IEventMapBuilder<TContext>
+    public interface IEventMapBuilder<TProjection, TKey, TContext>
     {
         /// <summary>
-        /// Configures the event map to handle projection creation and updating
-        /// via the provided delegate <paramref name="handler"/>.
+        /// Builds the resulting event map. Can only be called once.
         /// </summary>
-        void HandleProjectionModificationsAs(ProjectionModificationHandler<TProjection, TKey, TContext> handler);
-
-        /// <summary>
-        /// Configures the event map to handle projection deletion
-        /// via the provided delegate <paramref name="handler"/>.
-        /// </summary>
-        void HandleProjectionDeletionsAs(ProjectionDeletionHandler<TKey, TContext> handler);
+        IEventMap<TContext> Build(ProjectorMap<TProjection, TKey, TContext> projector);
     }
 
     /// <summary>
-    /// Handles projection creation and updating asynchronously using context <see cref="IEventMap{TContext}"/>.
+    /// Defines the contract for a projector that can handle the CRUD operations needed to handle
+    /// events as mapped through the <see cref="EventMapBuilder{TContext}"/>.
     /// </summary>
-    /// <typeparam name="TProjection">Type of the projections.</typeparam>
-    /// <typeparam name="TKey">Type of the projection keys.</typeparam>
-    /// <typeparam name="TContext">Type of the context.</typeparam>
-    /// <param name="key">Key of the projection.</param>
-    /// <param name="context">The context.</param>
+    public class ProjectorMap<TContext>
+    {
+        public CustomHandler<TContext> Custom { get; set; } = (context, projector)
+            => throw new NotSupportedException("No handler has been set-up for custom actions.");
+    }
+
+    /// <summary>
+    /// Defines the contract for a projector that can handle the CRUD operations needed to handle
+    /// events as mapped through the <see cref="EventMapBuilder{TProjection,Tkey,TContext}"/>
+    /// </summary>
+    public class ProjectorMap<TProjection, TKey, TContext> : ProjectorMap<TContext>
+    {
+        public CreationHandler<TProjection, TKey, TContext> Create { get; set; } = (key, context, projector, shouldOverwrite) =>
+            throw new NotSupportedException("No handler has been set-up for creations.");
+
+        public UpdateHandler<TProjection, TKey, TContext> Update { get; set; } = (key, context, projector, createIfMissing) =>
+            throw new NotSupportedException("No handler has been set-up for updates.");
+
+        public DeletionHandler<TKey, TContext> Delete { get; set; } = (key, context) =>
+            throw new NotSupportedException("No handler has been set-up for deletions.");
+    }
+
+    /// <summary>
+    /// Defines a handler for creating projections based on an event.
+    /// </summary>
+    /// <param name="key">
+    /// The key of projection as extracted from the event during its mapping configuration.
+    /// </param>
+    /// <param name="context">
+    /// An object providing information about the current event and any projector-specific metadata.
+    /// </param>
     /// <param name="projector">
     /// The delegate that must be invoked to handle the event for the provided projection
     /// and modify the projection accordingly.
     /// </param>
-    /// <param name="options">Additional options <see cref="ProjectionModificationOptions"/>.</param>
-    public delegate Task ProjectionModificationHandler<out TProjection, in TKey, in TContext>(
+    /// <param name="shouldOverwite">
+    /// Should be called by the handler to determine how to handle existing projections by the same key.
+    /// If it returns <c>true</c> then the handler should use the <paramref name="projector"/> to update the
+    /// state of the existing projection, or <c>false</c> to ignore the call. Can throw an exception if that was
+    /// requested through the event map. 
+    /// </param>
+    public delegate Task CreationHandler<out TProjection, TKey, in TContext>(
         TKey key,
         TContext context,
         Func<TProjection, Task> projector,
-        ProjectionModificationOptions options);
+        Func<TProjection, bool> shouldOverwite);
 
     /// <summary>
-    /// Provides additional options for <see cref="ProjectionModificationHandler{TProjection,TKey,TContext}"/>.
+    /// Defines a handler for updating projections based on an event.
     /// </summary>
-    public class ProjectionModificationOptions
-    {
-        /// <param name="missingProjectionBehavior">Behavior when the projection does not exists.</param>
-        /// <param name="existingProjectionBehavior">Behavior when the projection already exists.</param>
-        public ProjectionModificationOptions(
-            MissingProjectionModificationBehavior missingProjectionBehavior,
-            ExistingProjectionModificationBehavior existingProjectionBehavior)
-        {
-            MissingProjectionBehavior = missingProjectionBehavior;
-            ExistingProjectionBehavior = existingProjectionBehavior;
-        }
-
-        /// <summary>
-        /// Behavior when the projection does not exists.
-        /// </summary>
-        public MissingProjectionModificationBehavior MissingProjectionBehavior { get; }
-
-        /// <summary>
-        /// Behavior when the projection already exists.
-        /// </summary>
-        public ExistingProjectionModificationBehavior ExistingProjectionBehavior { get; }
-    }
-
-    /// <summary>
-    /// Specifies behavior for <see cref="ProjectionModificationHandler{TProjection,TKey,TContext}"/>
-    /// when the projection does not exists.
-    /// </summary>
-    public enum MissingProjectionModificationBehavior
-    {
-        /// <summary>
-        /// Creates a new projection when the projection does not exists.
-        /// </summary>
-        Create,
-
-        /// <summary>
-        /// Does nothing when the projection does not exists.
-        /// </summary>
-        Ignore,
-
-        /// <summary>
-        /// Throws an exception when the projection does not exists.
-        /// </summary>
-        Throw
-    }
-
-    /// <summary>
-    /// Specifies behavior for <see cref="ProjectionModificationHandler{TProjection,TKey,TContext}"/>
-    /// when the projection already exists.
-    /// </summary>
-    public enum ExistingProjectionModificationBehavior
-    {
-        /// <summary>
-        /// Updates the projection when it already exists.
-        /// </summary>
-        Update,
-
-        /// <summary>
-        /// Does nothing when the projection already exists.
-        /// </summary>
-        Ignore,
-
-        /// <summary>
-        /// Throws an exception when the projection already exists.
-        /// </summary>
-        Throw
-    }
-
-    /// <summary>
-    /// Handles projection deletion asynchronously using context <see cref="IEventMap{TContext}"/>.
-    /// </summary>
-    /// <typeparam name="TKey">The type of the projection keys.</typeparam>
-    /// <typeparam name="TContext">The type of the context.</typeparam>
-    /// <param name="key">The key of the projection.</param>
-    /// <param name="context">The context.</param>
-    /// <param name="options">Additional options <see cref="ProjectionDeletionOptions"/>.</param>
-    public delegate Task ProjectionDeletionHandler<in TKey, in TContext>(
+    /// <param name="key">
+    /// The key of projection as extracted from the event during its mapping configuration.
+    /// </param>
+    /// <param name="context">
+    /// An object providing information about the current event and any projector-specific metadata.
+    /// </param>
+    /// <param name="projector">
+    /// The delegate that must be invoked to handle the event for the provided projection
+    /// and modify the projection accordingly.
+    /// </param>
+    /// <param name="createIfMissing">
+    /// Should be called by the handler to determine whether it should create a missing projection. Depending on
+    /// how the event was mapped, it can throw an exception that should not be caught by the projector.  
+    /// </param>
+    public delegate Task UpdateHandler<out TProjection, in TKey, in TContext>(
         TKey key,
         TContext context,
-        ProjectionDeletionOptions options);
+        Func<TProjection, Task> projector,
+        Func<bool> createIfMissing);
 
-    /// <summary>
-    /// Provides additional options for <see cref="ProjectionDeletionHandler{TKey,TContext}"/>.
+   /// <summary>
+   /// Defines a handler for deleting projections based on an event.
     /// </summary>
-    public class ProjectionDeletionOptions
-    {
-        /// <param name="missingProjectionBehavior">Behavior when the projection does not exists.</param>
-        public ProjectionDeletionOptions(MissingProjectionDeletionBehavior missingProjectionBehavior)
-        {
-            MissingProjectionBehavior = missingProjectionBehavior;
-        }
-
-        /// <summary>
-        /// Behavior when the projection does not exists.
-        /// </summary>
-        public MissingProjectionDeletionBehavior MissingProjectionBehavior { get; }
-    }
-
-    /// <summary>
-    /// Specifies behavior for <see cref="ProjectionDeletionHandler{TKey,TContext}"/>
-    /// when the projection does not exists.
-    /// </summary>
-    public enum MissingProjectionDeletionBehavior
-    {
-        /// <summary>
-        /// Does nothing when the projection does not exists.
-        /// </summary>
-        Ignore,
-
-        /// <summary>
-        /// Throws an exception when the projection does not exists.
-        /// </summary>
-        Throw
-    }
+   /// <param name="key">
+   /// The key of projection as extracted from the event during its mapping configuration.
+   /// </param>
+   /// <param name="context">
+   /// An object providing information about the current event and any projector-specific metadata.
+   /// </param>
+    /// <returns>
+    /// Returns a value indicating if deleting the projection succeeded. Should return <c>false</c> if the projection did not exist,
+    /// </returns>
+    public delegate Task<bool> DeletionHandler<in TKey, in TContext>(
+        TKey key,
+        TContext context);
 }
+   
