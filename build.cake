@@ -1,7 +1,6 @@
 #tool "nuget:?package=xunit.runner.console"
 #tool "nuget:?package=GitVersion.CommandLine"
 #tool "nuget:?package=ILRepack"
-#addin "Cake.Incubator"
 
 //////////////////////////////////////////////////////////////////////
 // ARGUMENTS
@@ -106,14 +105,6 @@ Task("Pack")
 	.IsDependentOn("Merge")
     .Does(() => 
     {
-      NuGetPack("./src/LiquidProjections.Abstractions/.nuspec", new NuGetPackSettings {
-        OutputDirectory = "./Artifacts",
-        Version = gitVersion.NuGetVersionV2,
-		Properties = new Dictionary<string, string> {
-			{ "nugetversion", gitVersion.NuGetVersionV2 }
-		}
-      });        
-
       NuGetPack("./src/LiquidProjections/.nuspec", new NuGetPackSettings {
         OutputDirectory = "./Artifacts",
         Version = gitVersion.NuGetVersionV2,

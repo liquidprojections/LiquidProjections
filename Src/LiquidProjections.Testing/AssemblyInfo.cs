@@ -7,6 +7,6 @@ using System.Runtime.InteropServices;
 
 [assembly: ComVisible(false)]
 
-[assembly: AssemblyVersion("2.1.1.0")]
-[assembly: AssemblyFileVersion("2.1.1.0")]
-[assembly: AssemblyInformationalVersion("2.1.1-Statistics.1+2.Branch.Statistics.Sha.d204fd580c5bb1f85bdcdd4819af6123c7315da8")] 
+[assembly: AssemblyVersion("3.0.0.0")]
+[assembly: AssemblyFileVersion("3.0.0.0")]
+[assembly: AssemblyInformationalVersion("3.0.0+Branch.master.Sha.b01ddc2afa2c48c6bf377b3b7116120e81445c19")] 
