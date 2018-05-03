@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Chill;
 using FluentAssertions;
@@ -1066,20 +1068,170 @@ namespace LiquidProjections.Specs
             }
         }
 
+        public class When_an_event_is_mapped_by_a_base_class_and_an_event_of_child_type_is_handled : GivenWhenThen
+        {
+            private IEventMap<ProjectionContext> map;
+
+            private ProductCatalogEntry projection;
+            
+            public When_an_event_is_mapped_by_a_base_class_and_an_event_of_child_type_is_handled()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+
+                    mapBuilder
+                        .Map<ProductEvent>()
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) =>
+                        {
+                            p.Category = "All Products";
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Update = async (key, context, projector, createIfMissing) =>
+                        {
+                            projection = new ProductCatalogEntry
+                            {
+                                Id = key,
+                            };
+
+                            await projector(projection);
+                        }
+                    });
+                });
+                
+                When(async () =>
+                {
+                    await map.Handle(
+                        new ProductAddedToCatalogEvent
+                        {
+                            Category = "Hybrids",
+                            ProductKey = "c350E"
+                        },
+                        new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_invoke_the_handler_configured_on_the_base_class()
+            {
+                projection.Category.Should().Be("All Products");
+            }
+        }
+        
+        public class When_mappings_for_the_base_and_concrete_event_types_are_both_configured : GivenWhenThen
+        {
+            private IEventMap<ProjectionContext> map;
+
+            private ProductCatalogEntry projection;
+
+            private Type lastHandlerInvoked;
+            
+            public When_mappings_for_the_base_and_concrete_event_types_are_both_configured()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+
+                    var inMemoryProjections = new List<ProductCatalogEntry>();
+
+                    mapBuilder
+                        .Map<ProductEvent>()
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) =>
+                        {
+                            p.Category = "All Products";
+                            lastHandlerInvoked = typeof(ProductEvent);
+                            return Task.FromResult(0);
+                        });
+                    
+                    mapBuilder
+                        .Map<ProductPriceChangedEvent>()
+                        .AsUpdateOf(e => e.ProductKey)
+                        .Using((p, e, ctx) =>
+                        {
+                            p.Price = e.Price;
+                            lastHandlerInvoked = typeof(ProductPriceChangedEvent);
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Update = async (key, context, projector, createIfMissing) =>
+                        {
+                            projection = inMemoryProjections.FirstOrDefault(projection => projection.Id == key);
+
+                            if (projection == null)
+                            {
+                                projection = new ProductCatalogEntry
+                                {
+                                    Id = key,
+                                };
+                                inMemoryProjections.Add(projection);
+                            }
+
+                            await projector(projection);
+                        }
+                    });
+                });
+                
+                When(async () =>
+                {
+                    await map.Handle(
+                        new ProductPriceChangedEvent
+                        {
+                            Price = 10.5m,
+                            ProductKey = "c350E"
+                        },
+                        new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_invoke_both_handlers()
+            {
+                projection.Should().BeEquivalentTo(new
+                {
+                    Id = "c350E",
+                    Category = "All Products",
+                    Price = 10.5m,
+                    Deleted = false
+                });
+            }
+
+            [Fact]
+            public void It_should_invoke_the_concrete_type_handler_last()
+            {
+                lastHandlerInvoked.Should().Be<ProductPriceChangedEvent>();
+            }
+        }
+
         public class ProductCatalogEntry
         {
             public string Id { get; set; }
             public string Category { get; set; }
             public bool Deleted { get; set; }
+            public decimal Price { get; set; }
         }
 
-        public class ProductAddedToCatalogEvent
+        public class ProductAddedToCatalogEvent : ProductEvent
         {
-            public string ProductKey { get; set; }
             public string Category { get; set; }
         }
 
-        public class ProductDiscontinuedEvent
+        public class ProductDiscontinuedEvent : ProductEvent
+        {
+        }
+
+        public class ProductPriceChangedEvent : ProductEvent
+        {
+            public decimal Price { get; set; }
+        }
+
+        public class ProductEvent
         {
             public string ProductKey { get; set; }
         }
