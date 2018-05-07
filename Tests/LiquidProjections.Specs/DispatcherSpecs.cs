@@ -19,6 +19,7 @@ namespace LiquidProjections.Specs
 {
     namespace DispatcherSpecs
     {
+        [Collection("LogProviderDependent")]
         public class When_a_projector_throws_an_exception : GivenSubject<Dispatcher>
         {
             public When_a_projector_throws_an_exception()
@@ -71,6 +72,7 @@ namespace LiquidProjections.Specs
             }
         }
 
+        [Collection("LogProviderDependent")]
         public class When_a_projector_throws_an_exception_but_requires_retrying : GivenSubject<Dispatcher>
         {
             private int attempts;
@@ -122,6 +124,8 @@ namespace LiquidProjections.Specs
                 The<FakeLogProvider>().Exception.Should().BeNull();
             }
         }
+        
+        [Collection("LogProviderDependent")]
         public class When_a_projector_throws_an_exception_and_the_exception_handler_has_a_delay_and_the_subscription_is_disposed :
             GivenSubject<Dispatcher>
         {
@@ -184,6 +188,8 @@ namespace LiquidProjections.Specs
                 }
             }
         }
+        
+        [Collection("LogProviderDependent")]   
         public class When_a_projector_throws_an_exception_that_can_be_ignored : GivenSubject<Dispatcher>
         {
             private int attempts;
@@ -312,6 +318,7 @@ namespace LiquidProjections.Specs
                 transactions.First().Checkpoint.Should().Be(1);
             }
         }
+        
         public class When_the_autorestart_cleanup_action_throws_but_a_retry_is_requested : GivenSubject<Dispatcher>
         {
             private readonly TaskCompletionSource<bool> done = new TaskCompletionSource<bool>();
@@ -410,6 +417,7 @@ namespace LiquidProjections.Specs
                 actualTransactions.Should().NotBeEmpty();
             }
         }
+        
         public class When_the_autorestart_cleanup_action_throws_an_exception : GivenSubject<Dispatcher>
         {
             private IReadOnlyList<Transaction> actualTransactions;
