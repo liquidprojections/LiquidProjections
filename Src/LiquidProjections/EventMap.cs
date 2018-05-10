@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace LiquidProjections
@@ -43,9 +44,11 @@ namespace LiquidProjections
 
             if (await PassesFilter(anEvent, context))
             {
-                Type key = anEvent.GetType();
+                Type eventType = anEvent.GetType();
 
-                if (mappings.TryGetValue(key, out var handlers))
+                List<Handler> handlers = GetHandlersForType(eventType);
+
+                if (handlers.Any())
                 {
                     foreach (Handler handler in handlers)
                     {
@@ -71,6 +74,23 @@ namespace LiquidProjections
             {
                 return true;
             }
+        }
+
+        private List<Handler> GetHandlersForType(Type eventType)
+        {
+            var handlers = new List<Handler>();
+            Type baseType = mappings.Keys.FirstOrDefault(key => eventType.GetTypeInfo().IsSubclassOf(key));
+            if (baseType != null)
+            {
+                handlers.AddRange(mappings[baseType]);
+            }
+
+            if (mappings.TryGetValue(eventType, out var concreteTypeHandlers))
+            {
+                handlers.AddRange(concreteTypeHandlers);                
+            }
+            
+            return handlers;
         }
 
         private delegate Task Handler(object @event, TContext context);
