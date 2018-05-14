@@ -13,7 +13,7 @@
         <releaseNotes/>
       <dependencies>
         <group>
-          <dependency id="LiquidProjections.Abstractions" version="$nugetversion$"/>
+          <dependency id="LiquidProjections.Abstractions" version="[3.0, 4.0)"/>
     		</group>
       </dependencies>
     </metadata>
