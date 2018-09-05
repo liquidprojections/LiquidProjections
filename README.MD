@@ -1,22 +1,13 @@
-# Liquid Projections [![Build status](https://ci.appveyor.com/api/projects/status/85nutadfiq44bwq1?svg=true)](https://ci.appveyor.com/project/dennisdoomen/liquidprojections)
+# Liquid Projections 
+[![](https://ci.appveyor.com/api/projects/status/85nutadfiq44bwq1?svg=true&label=build%20status)](https://ci.appveyor.com/project/dennisdoomen/liquidprojections)
+[![](https://img.shields.io/github/release/liquidprojections/liquidprojections.svg?label=latest%20release)](https://github.com/liquidprojections/liquidprojections/releases/latest)
+[![](https://img.shields.io/nuget/dt/LiquidProjections.svg?label=nuget%20downloads)](https://www.nuget.org/packages/liquidprojections)
+![](https://img.shields.io/badge/release%20strategy-githubflow-orange.svg)
 
-## What is this?
-Liquid Projections is designed as a library (and not a framework) that should help you write maintainable projection code in an [event sourcing](https://www.martinfowler.com/eaaDev/EventSourcing.html) architecture. After [evaluating](http://www.continuousimprover.com/2016/06/event-sourcing-from-trenches-projections.html) several years of working with an event sourced architecture, I decided I needed a fresh start. This project has been designed based on the following principles:
+Liquid Projections (or LP for short) is a set of highly efficient building blocks that each provide value on their own, but shine when used together to build synchronous and asynchronous projectors. It’s the culmination of years of (painful) experiences and has been battle-tested in production for almost two years now. It’s distributed as a collection of NuGet packages that ensure you only need to take dependencies on things you really need. Read more about this project at [www.liquidprojections.net](https://liquidprojections.net/about/).
 
-* Designed as a library which doesn't hide the magic behind abstractions and tries to avoid the need to sub-class anything. 
-* Projections must be autonomous so whether a projector stores its projections in-memory, in RavenDB or in a RDBMS is a local concern. 
-* Similarly, whether it restarts from scratch every time or stores progress information in-between is a decision each projection can make.
-* Is distributed as separate NuGet packages so that you don't need to take dependencies on stuff you don't need. 
-* `async` all the way
-
-## What does it offer?
-Liquid Projections offers several components that are designed to be used independently.
-* An `EventMapBuilder` to fluently build an `EventMap` that defines how events should be handled during projection. 
-* A thin abstraction named `IEventStore` to represent an event store. Currently only NEventStore is supported as well as a in-memory event store for testing purposes. 
-* Projector classes for RavenDB, NHibernate as well as an agnostic Projector that you can use *within* your projectors. 
-* Support for look-ups by allowing you to nest projectors.
-* A `Dispatcher` that can be used to connect an `IEventStore` implementation with a projector. 
-* A `ProjectionException` that provides everything you would like to know to understand why a projection fails. 
+## What is this repo?
+This repository holds the source code for the basic building blocks for creating event maps, simple storage-agnostic projectors, collecting projection statistics and exposing statistics as HTTP APIs. It builds the NuGet packages [LiquidProjections](https://www.nuget.org/packages/liquidprojections), [LiquidProjections.Abstractions](https://www.nuget.org/packages/LiquidProjections.Abstractions/), [LiquidProjections.Owin](https://www.nuget.org/packages/LiquidProjections.Owin/), [LiquidProjections.Testing](https://www.nuget.org/packages/LiquidProjections.Testing/), 
 
 ## How to get started?
-For now, please review the unit tests. 
+See the [Getting Started](https://liquidprojections.net/getting-started/) documentation.  
