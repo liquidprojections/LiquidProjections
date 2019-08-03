@@ -44,10 +44,10 @@ namespace LiquidProjections.Specs
                 When(async () =>
                 {
                     await map.Handle(new ProductAddedToCatalogEvent
-                        {
-                            Category = "Hybrids",
-                            ProductKey = "c350E"
-                        },
+                    {
+                        Category = "Hybrids",
+                        ProductKey = "c350E"
+                    },
                         new ProjectionContext());
                 });
             }
@@ -58,6 +58,59 @@ namespace LiquidProjections.Specs
                 projection.Should().BeEquivalentTo(new
                 {
                     Id = "c350E",
+                    Category = "Hybrids",
+                    Deleted = false
+                });
+            }
+        }
+
+        public class When_event_should_create_a_new_projection_from_context : GivenWhenThen
+        {
+            private ProductCatalogEntry projection;
+            private IEventMap<ProjectionContext> map;
+
+            public When_event_should_create_a_new_projection_from_context()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+                    mapBuilder.Map<ProductAddedToCatalogEvent>().AsCreateOf((e, context) => context.EventHeaders["ProductId"] as string).Using((p, e, ctx) =>
+                     {
+                         p.Category = e.Category;
+
+                         return Task.FromResult(0);
+                     });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Create = async (key, context, projector, shouldOverwrite) =>
+                        {
+                            projection = new ProductCatalogEntry
+                            {
+                                Id = key,
+                            };
+
+                            await projector(projection);
+                        }
+                    });
+                });
+
+                When(async () =>
+                {
+                    await map.Handle(new ProductAddedToCatalogEvent
+                    {
+                        Category = "Hybrids"
+                    },
+                        new ProjectionContext() { EventHeaders = new Dictionary<string, object>(1) { { "ProductId", "1234" } } });
+                });
+            }
+
+            [Fact]
+            public void It_should_properly_pass_the_mapping_to_the_creating_handler()
+            {
+                projection.Should().BeEquivalentTo(new
+                {
+                    Id = "1234",
                     Category = "Hybrids",
                     Deleted = false
                 });
@@ -84,7 +137,7 @@ namespace LiquidProjections.Specs
                             p.Category = e.Category;
                             return Task.FromResult(0);
                         });
-                    
+
                     existingProjection = new ProductCatalogEntry
                     {
                         Id = "c350E",
@@ -235,10 +288,10 @@ namespace LiquidProjections.Specs
                 When(async () =>
                 {
                     await map.Handle(new ProductAddedToCatalogEvent
-                        {
-                            Category = "NewCategory",
-                            ProductKey = "c350E"
-                        },
+                    {
+                        Category = "NewCategory",
+                        ProductKey = "c350E"
+                    },
                         new ProjectionContext());
                 });
             }
@@ -314,7 +367,7 @@ namespace LiquidProjections.Specs
 
                 existingProjection.Category.Should().Be("OldCategory");
             }
-    }
+        }
 
         public class When_an_updating_event_should_ignore_missing_projections : GivenWhenThen
         {
@@ -360,6 +413,7 @@ namespace LiquidProjections.Specs
                 WhenAction.Should().NotThrow();
             }
         }
+
         public class When_an_updating_event_should_create_a_missing_projection : GivenWhenThen
         {
             private IEventMap<ProjectionContext> map;
@@ -386,7 +440,7 @@ namespace LiquidProjections.Specs
                         Update = (key, context, projector, createIfMissing) =>
                         {
                             shouldCreate = true;
-                            
+
                             return Task.FromResult(0);
                         }
                     });
@@ -401,6 +455,57 @@ namespace LiquidProjections.Specs
                             ProductKey = "c350E"
                         },
                         new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_throw()
+            {
+                shouldCreate.Should().BeTrue("because that's how the map was configured");
+            }
+        }
+
+        public class When_an_updating_event_should_create_a_missing_projection_from_context : GivenWhenThen
+        {
+            private IEventMap<ProjectionContext> map;
+            private bool shouldCreate;
+
+            public When_an_updating_event_should_create_a_missing_projection_from_context()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+
+                    mapBuilder
+                        .Map<ProductAddedToCatalogEvent>()
+                        .AsUpdateOf((e, context) => context.EventHeaders["ProductId"] as string)
+                        .CreatingIfMissing()
+                        .Using((p, e, ctx) =>
+                        {
+                            p.Category = e.Category;
+                            return Task.FromResult(0);
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Update = (key, context, projector, createIfMissing) =>
+                        {
+                            shouldCreate = true;
+
+                            return Task.FromResult(0);
+                        }
+                    });
+                });
+
+                When(async () =>
+                {
+                    await map.Handle(
+                        new ProductAddedToCatalogEvent
+                        {
+                            Category = "Hybrids",
+                            ProductKey = "c350E"
+                        },
+                        new ProjectionContext() { EventHeaders = new Dictionary<string, object>(1) { { "ProductId", "1234" } } });
                 });
             }
 
@@ -486,7 +591,7 @@ namespace LiquidProjections.Specs
                         {
                             isDeleted = true;
                             return Task.FromResult(true);
-                        } 
+                        }
                     });
                 });
 
@@ -524,7 +629,7 @@ namespace LiquidProjections.Specs
 
                     map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
                     {
-                       Delete = (key, context) => Task.FromResult(false) 
+                        Delete = (key, context) => Task.FromResult(false)
                     });
                 });
 
@@ -566,7 +671,7 @@ namespace LiquidProjections.Specs
 
                     map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
                     {
-                       Delete = (key, context) => Task.FromResult(false) 
+                        Delete = (key, context) => Task.FromResult(false)
                     });
                 });
 
@@ -578,6 +683,48 @@ namespace LiquidProjections.Specs
                             ProductKey = "c350E"
                         },
                         new ProjectionContext());
+                });
+            }
+
+            [Fact]
+            public void It_should_not_throw()
+            {
+                WhenAction.Should().NotThrow();
+            }
+        }
+
+        public class When_deleting_a_non_existing_event_should_be_handled_manually_from_context : GivenWhenThen
+        {
+            private IEventMap<ProjectionContext> map;
+            private object missedKey;
+
+            public When_deleting_a_non_existing_event_should_be_handled_manually_from_context()
+            {
+                Given(() =>
+                {
+                    var mapBuilder = new EventMapBuilder<ProductCatalogEntry, string, ProjectionContext>();
+                    mapBuilder
+                        .Map<ProductDiscontinuedEvent>()
+                        .AsDeleteOf((e, context) => context.EventHeaders["ProductId"] as string)
+                        .HandlingMissesUsing((key, context) =>
+                        {
+                            missedKey = key;
+                        });
+
+                    map = mapBuilder.Build(new ProjectorMap<ProductCatalogEntry, string, ProjectionContext>
+                    {
+                        Delete = (key, context) => Task.FromResult(false)
+                    });
+                });
+
+                WhenLater(async () =>
+                {
+                    await map.Handle(
+                        new ProductDiscontinuedEvent
+                        {
+                            ProductKey = "c350E"
+                        },
+                        new ProjectionContext() { EventHeaders = new Dictionary<string, object>(1) { { "ProductId", "1234" } } });
                 });
             }
 
@@ -648,7 +795,7 @@ namespace LiquidProjections.Specs
 
                             return Task.FromResult(true);
                         });
-                    
+
                     mapBuilder
                         .Map<ProductAddedToCatalogEvent>()
                         .As((e, ctx) =>
@@ -660,7 +807,7 @@ namespace LiquidProjections.Specs
 
                     map = mapBuilder.Build(new ProjectorMap<object>
                     {
-                        Custom = (context, projector) => projector() 
+                        Custom = (context, projector) => projector()
                     });
                 });
 
@@ -705,7 +852,7 @@ namespace LiquidProjections.Specs
 
                     map = mapBuilder.Build(new ProjectorMap<object>
                     {
-                        Custom = (context, projector) => projector() 
+                        Custom = (context, projector) => projector()
                     });
                 });
 
@@ -793,7 +940,7 @@ namespace LiquidProjections.Specs
 
                         var map = mapBuilder.Build(new ProjectorMap<object>
                         {
-                            Custom = (context, projector) =>throw new InvalidOperationException("Custom action should not be called.") 
+                            Custom = (context, projector) => throw new InvalidOperationException("Custom action should not be called.")
                         });
                     };
                 });
@@ -1073,7 +1220,7 @@ namespace LiquidProjections.Specs
             private IEventMap<ProjectionContext> map;
 
             private ProductCatalogEntry projection;
-            
+
             public When_an_event_is_mapped_by_a_base_class_and_an_event_of_child_type_is_handled()
             {
                 Given(() =>
@@ -1102,7 +1249,7 @@ namespace LiquidProjections.Specs
                         }
                     });
                 });
-                
+
                 When(async () =>
                 {
                     await map.Handle(
@@ -1121,7 +1268,7 @@ namespace LiquidProjections.Specs
                 projection.Category.Should().Be("All Products");
             }
         }
-        
+
         public class When_mappings_for_the_base_and_concrete_event_types_are_both_configured : GivenWhenThen
         {
             private IEventMap<ProjectionContext> map;
@@ -1129,7 +1276,7 @@ namespace LiquidProjections.Specs
             private ProductCatalogEntry projection;
 
             private Type lastHandlerInvoked;
-            
+
             public When_mappings_for_the_base_and_concrete_event_types_are_both_configured()
             {
                 Given(() =>
@@ -1147,7 +1294,7 @@ namespace LiquidProjections.Specs
                             lastHandlerInvoked = typeof(ProductEvent);
                             return Task.FromResult(0);
                         });
-                    
+
                     mapBuilder
                         .Map<ProductPriceChangedEvent>()
                         .AsUpdateOf(e => e.ProductKey)
@@ -1177,7 +1324,7 @@ namespace LiquidProjections.Specs
                         }
                     });
                 });
-                
+
                 When(async () =>
                 {
                     await map.Handle(

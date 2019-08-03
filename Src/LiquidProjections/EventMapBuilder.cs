@@ -187,6 +187,16 @@ namespace LiquidProjections
                 getProjector = () => parent.projector;
             }
 
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateOf(Func<TEvent, TContext, TKey> getKey)
+            {
+                if (getKey == null)
+                {
+                    throw new ArgumentNullException(nameof(getKey));
+                }
+
+                return new CreateAction(actionBuilder, getProjector, getKey);
+            }
+
             public ICreateAction<TEvent, TProjection, TContext> AsCreateOf(Func<TEvent, TKey> getKey)
             {
                 if (getKey == null)
@@ -203,7 +213,18 @@ namespace LiquidProjections
                 return AsCreateOf(getKey).IgnoringDuplicates();
             }
 
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateIfDoesNotExistOf(
+                Func<TEvent, TContext, TKey> getKey)
+            {
+                return AsCreateOf(getKey).IgnoringDuplicates();
+            }
+
             public ICreateAction<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TKey> getKey)
+            {
+                return AsCreateOf(getKey).OverwritingDuplicates();
+            }
+
+            public ICreateAction<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TContext, TKey> getKey)
             {
                 return AsCreateOf(getKey).OverwritingDuplicates();
             }
@@ -218,12 +239,37 @@ namespace LiquidProjections
                 return new DeleteAction(actionBuilder, getProjector, getKey);
             }
 
-            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent, TKey> getKey)
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteOf(Func<TEvent, TContext, TKey> getKey)
+            {
+                if (getKey == null)
+                {
+                    throw new ArgumentNullException(nameof(getKey));
+                }
+
+                return new DeleteAction(actionBuilder, getProjector, getKey);
+            }
+
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent,  TKey> getKey)
             {
                 return AsDeleteOf(getKey).IgnoringMisses();
             }
 
-            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent, TKey> getKey)
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent, TContext, TKey> getKey)
+            {
+                return AsDeleteOf(getKey).IgnoringMisses();
+            }
+
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent,  TKey> getKey)
+            {
+                if (getKey == null)
+                {
+                    throw new ArgumentNullException(nameof(getKey));
+                }
+
+                return new UpdateAction(actionBuilder, getProjector, (anEvent, context) => getKey(anEvent));
+            }
+
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent, TContext, TKey> getKey)
             {
                 if (getKey == null)
                 {
@@ -233,6 +279,10 @@ namespace LiquidProjections
                 return new UpdateAction(actionBuilder, getProjector, getKey);
             }
 
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TContext, TKey> getKey)
+            {
+                return AsUpdateOf(getKey).IgnoringMisses();
+            }
             public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TKey> getKey)
             {
                 return AsUpdateOf(getKey).IgnoringMisses();
@@ -267,10 +317,10 @@ namespace LiquidProjections
 
                 private readonly IAction<TEvent, TContext> actionBuilder;
                 private readonly Func<ProjectorMap<TProjection, TKey, TContext>> projector;
-                private readonly Func<TEvent, TKey> getKey;
+                private readonly Func<TEvent, TContext, TKey> getKey;
 
                 public CreateAction(IAction<TEvent, TContext> actionBuilder,
-                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TContext, TKey> getKey)
                 {
                     this.actionBuilder = actionBuilder;
                     this.projector = projector;
@@ -278,9 +328,20 @@ namespace LiquidProjections
 
                     shouldOverwrite = (existingProjection, @event, context) =>
                         throw new ProjectionException(
-                            $"Projection {typeof(TProjection)} with key {getKey(@event)}already exists.");
+                            $"Projection {typeof(TProjection)} with key {getKey(@event,context)}already exists.");
                 }
 
+                public CreateAction(IAction<TEvent, TContext> actionBuilder,
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
+                {
+                    this.actionBuilder = actionBuilder;
+                    this.projector = projector;
+                    this.getKey = (@event, context) =>getKey(@event);
+
+                    shouldOverwrite = (existingProjection, @event, context) =>
+                        throw new ProjectionException(
+                            $"Projection {typeof(TProjection)} with key {getKey(@event)}already exists.");
+                }
                 public ICreateAction<TEvent, TProjection, TContext> Using(Func<TProjection, TEvent, TContext, Task> projector)
                 {
                     if (projector == null)
@@ -289,7 +350,7 @@ namespace LiquidProjections
                     }
 
                     actionBuilder.As((anEvent, context) => this.projector().Create(
-                            getKey(anEvent),
+                            getKey(anEvent,context),
                             context,
                             projection => projector(projection, anEvent, context),
                             existingProjection => shouldOverwrite(existingProjection, anEvent, context)));
@@ -320,11 +381,11 @@ namespace LiquidProjections
             {
                 private readonly IAction<TEvent, TContext> actionBuilder;
                 private readonly Func<ProjectorMap<TProjection, TKey, TContext>> projector;
-                private readonly Func<TEvent, TKey> getKey;
+                private readonly Func<TEvent, TContext, TKey> getKey;
                 private Func<TKey, TContext, bool> handleMissesUsing;
 
                 public UpdateAction(IAction<TEvent, TContext> actionBuilder,
-                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TContext, TKey> getKey)
                 {
                     this.projector = projector;
                     this.actionBuilder = actionBuilder;
@@ -347,7 +408,7 @@ namespace LiquidProjections
 
                 private async Task OnUpdate(Func<TProjection, TEvent, TContext, Task> projector, TEvent anEvent, TContext context)
                 {
-                    var key = getKey(anEvent);
+                    var key = getKey(anEvent,context);
                     
                     await this.projector().Update(
                         key,
@@ -386,16 +447,24 @@ namespace LiquidProjections
                 private Action<TKey, TContext> handleMissing;
 
                 public DeleteAction(IAction<TEvent, TContext> actionBuilder,
-                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TContext, TKey> getKey)
                 {
                     actionBuilder.As((anEvent, context) => OnDelete(projector(), getKey, anEvent, context));
 
                     ThrowingIfMissing();
                 }
 
-                private async Task OnDelete(ProjectorMap<TProjection, TKey, TContext> projector, Func<TEvent, TKey> getKey, TEvent anEvent, TContext context)
+                public DeleteAction(IAction<TEvent, TContext> actionBuilder,
+                    Func<ProjectorMap<TProjection, TKey, TContext>> projector, Func<TEvent, TKey> getKey)
                 {
-                    TKey key = getKey(anEvent);
+                    actionBuilder.As((anEvent, context) => OnDelete(projector(), (anEvent1, context1) => getKey(anEvent1), anEvent, context));
+
+                    ThrowingIfMissing();
+                }
+
+                private async Task OnDelete(ProjectorMap<TProjection, TKey, TContext> projector, Func<TEvent, TContext, TKey> getKey, TEvent anEvent, TContext context)
+                {
+                    TKey key = getKey(anEvent, context);
                     bool deleted = await projector.Delete(key, context);
                     if (!deleted)
                     {
