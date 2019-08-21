@@ -1,5 +1,5 @@
 #tool "nuget:?package=xunit.runner.console"
-#tool "nuget:?package=GitVersion.CommandLine"
+#tool "nuget:?package=GitVersion.CommandLine&version=3.6.5"
 #tool "nuget:?package=ILRepack"
 
 //////////////////////////////////////////////////////////////////////
