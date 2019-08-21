@@ -179,7 +179,7 @@ namespace LiquidProjections
         private sealed class CrudAction<TEvent> : ICrudAction<TEvent, TProjection, TKey, TContext>
         {
             private readonly IAction<TEvent, TContext> actionBuilder;
-            private readonly Func<ProjectorMap<TProjection, TKey, TContext> > getProjector;
+            private readonly Func<ProjectorMap<TProjection, TKey, TContext>> getProjector;
 
             public CrudAction(EventMapBuilder<TProjection, TKey, TContext> parent)
             {
@@ -213,18 +213,7 @@ namespace LiquidProjections
                 return AsCreateOf(getKey).IgnoringDuplicates();
             }
 
-            public ICreateAction<TEvent, TProjection, TContext> AsCreateIfDoesNotExistOf(
-                Func<TEvent, TContext, TKey> getKey)
-            {
-                return AsCreateOf(getKey).IgnoringDuplicates();
-            }
-
             public ICreateAction<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TKey> getKey)
-            {
-                return AsCreateOf(getKey).OverwritingDuplicates();
-            }
-
-            public ICreateAction<TEvent, TProjection, TContext> AsCreateOrUpdateOf(Func<TEvent, TContext, TKey> getKey)
             {
                 return AsCreateOf(getKey).OverwritingDuplicates();
             }
@@ -249,17 +238,12 @@ namespace LiquidProjections
                 return new DeleteAction(actionBuilder, getProjector, getKey);
             }
 
-            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent,  TKey> getKey)
+            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent, TKey> getKey)
             {
                 return AsDeleteOf(getKey).IgnoringMisses();
             }
 
-            public IDeleteAction<TEvent, TKey, TContext> AsDeleteIfExistsOf(Func<TEvent, TContext, TKey> getKey)
-            {
-                return AsDeleteOf(getKey).IgnoringMisses();
-            }
-
-            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent,  TKey> getKey)
+            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateOf(Func<TEvent, TKey> getKey)
             {
                 if (getKey == null)
                 {
@@ -279,10 +263,6 @@ namespace LiquidProjections
                 return new UpdateAction(actionBuilder, getProjector, getKey);
             }
 
-            public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TContext, TKey> getKey)
-            {
-                return AsUpdateOf(getKey).IgnoringMisses();
-            }
             public IUpdateAction<TEvent, TKey, TProjection, TContext> AsUpdateIfExistsOf(Func<TEvent, TKey> getKey)
             {
                 return AsUpdateOf(getKey).IgnoringMisses();
@@ -342,6 +322,7 @@ namespace LiquidProjections
                         throw new ProjectionException(
                             $"Projection {typeof(TProjection)} with key {getKey(@event)}already exists.");
                 }
+
                 public ICreateAction<TEvent, TProjection, TContext> Using(Func<TProjection, TEvent, TContext, Task> projector)
                 {
                     if (projector == null)
